@@ -1,0 +1,33 @@
+.header {
+  background: #ffffff;
+  padding: 12px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e5e7eb;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  height: 60px;
+}
+
+.header-left h1 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.user-profile span {
+  font-size: 14px;
+  color: #6b7280;
+}
+
+.company-logo {
+  width: 40px;
+  height: 40px;
+}

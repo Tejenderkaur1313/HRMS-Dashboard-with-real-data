@@ -1,0 +1,43 @@
+<nav class="sidebar">
+  <div class="sidebar-content">
+    <div class="nav-item" [class.active]="activeSection==='dashboard'" (click)="navigateToSection('dashboard')">
+      <span class="nav-icon material-symbols-rounded">dashboard</span>
+      <span class="nav-label">Dashboard</span>
+    </div>
+    
+    <div class="nav-item" [class.active]="activeSection==='leave-management'" (click)="navigateToSection('leave-management')">
+      <span class="nav-icon material-symbols-rounded">event_available</span>
+      <span class="nav-label">Leave Management</span>
+    </div>
+    
+    <div class="nav-item" [class.active]="activeSection==='attendance'" (click)="navigateToSection('attendance')">
+      <span class="nav-icon material-symbols-rounded">how_to_reg</span>
+      <span class="nav-label">Attendance</span>
+    </div>
+    
+    <div class="nav-item" [class.active]="activeSection==='payroll'" (click)="navigateToSection('payroll')">
+      <span class="nav-icon material-symbols-rounded">payments</span>
+      <span class="nav-label">Payroll</span>
+    </div>
+    
+    <div class="nav-item" [class.active]="activeSection==='recruitment'" (click)="navigateToSection('recruitment')">
+      <span class="nav-icon material-symbols-rounded">person_search</span>
+      <span class="nav-label">Recruitment</span>
+    </div>
+    
+    <div class="nav-item" [class.active]="activeSection==='performance'" (click)="navigateToSection('performance')">
+      <span class="nav-icon material-symbols-rounded">trending_up</span>
+      <span class="nav-label">Performance</span>
+    </div>
+    
+    <div class="nav-item" [class.active]="activeSection==='diversity-benefits'" (click)="navigateToSection('diversity-benefits')">
+      <span class="nav-icon material-symbols-rounded">diversity_3</span>
+      <span class="nav-label">Diversity &amp; Benefits</span>
+    </div>
+    
+    <div class="nav-item" [class.active]="activeSection==='reports-analytics'" (click)="navigateToSection('reports-analytics')">
+      <span class="nav-icon material-symbols-rounded">analytics</span>
+      <span class="nav-label">Reports &amp; Analytics</span>
+    </div>
+  </div>
+</nav>

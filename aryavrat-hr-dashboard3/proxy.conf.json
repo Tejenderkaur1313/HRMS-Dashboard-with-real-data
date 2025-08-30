@@ -1,0 +1,17 @@
+{
+  "/api/*": {
+    "target": "http://192.168.1.81:8000",
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "debug",
+    "timeout": 60000,
+    "headers": {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization"
+    },
+    "onProxyReq": {
+      "timeout": 60000
+    }
+  }
+}
