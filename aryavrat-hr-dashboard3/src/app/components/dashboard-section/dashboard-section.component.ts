@@ -1,381 +1,353 @@
+// dashboard-section.component.ts
+
 import { Component, OnInit, Inject, PLATFORM_ID } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { BaseChartDirective } from 'ng2-charts';
-import { ChartConfiguration } from 'chart.js';
+import { ChartConfiguration, ChartOptions, ChartType } from 'chart.js';
 import { DataService } from '../services/data.service';
 import { FilterService } from '../services/filter.service';
+import { DepartmentService, Department } from '../services/department.service';
 import { map, combineLatest } from 'rxjs';
+
+interface Holiday {
+  name: string;
+  date: Date;
+  day: string;
+  month: string;
+  type: string;
+}
+
+interface LeaveRequest {
+  id: number;
+  employee: string;
+  type: string;
+  startDate: string;
+  endDate: string;
+  status: 'pending' | 'approved' | 'rejected';
+  avatar: string;
+}
 
 @Component({
   selector: 'app-dashboard-section',
   standalone: true,
   imports: [CommonModule, BaseChartDirective],
-  template: `
-    <div class="dashboard-container">
-      <div class="section-header">
-        <div>
-          <h1 class="section-title">Dashboard Overview</h1>
-          <p class="section-subtitle">Real-time insights into your workforce performance</p>
-        </div>
-      </div>
-      
-      <div class="kpi-row">
-        <div class="kpi-card" style="border-left-color: var(--primary-accent);">
-          <div class="kpi-value">{{ summary.headcount }}</div>
-          <div class="kpi-label">Total Employees</div>
-          <div class="kpi-trend">Active workforce</div>
-        </div>
-        <div class="kpi-card" style="border-left-color: var(--warning);">
-          <div class="kpi-value">{{ summary.activeLeaves }}</div>
-          <div class="kpi-label">Active Leaves</div>
-          <div class="kpi-trend">Currently on leave</div>
-        </div>
-        <div class="kpi-card" style="border-left-color: var(--success);">
-          <div class="kpi-value">{{ summary.attendanceRate }}%</div>
-          <div class="kpi-label">Attendance Rate</div>
-          <div class="kpi-trend">This month</div>
-        </div>
-        <div class="kpi-card" style="border-left-color: var(--info);">
-          <div class="kpi-value">{{ summary.newHires }}</div>
-          <div class="kpi-label">New Hires</div>
-          <div class="kpi-trend">This quarter</div>
-        </div>
-      </div>
-      
-      <div class="dashboard-grid three-column">
-        <div class="widget">
-          <div class="widget-header">
-            <h3 class="widget-title">Monthly Attendance Trend</h3>
-            <span class="widget-actions">📈</span>
-          </div>
-          <div class="widget-content">
-            <canvas *ngIf="isBrowser" baseChart [data]="attendanceTrendData" [options]="lineOptions" type="line"></canvas>
-            <div *ngIf="!isBrowser" class="chart-placeholder">Attendance Trend Chart</div>
-          </div>
-        </div>
-        <div class="widget">
-          <div class="widget-header">
-            <h3 class="widget-title">Department Overview</h3>
-            <span class="widget-actions">🏢</span>
-          </div>
-          <div class="widget-content">
-            <canvas *ngIf="isBrowser" baseChart [data]="deptChartData" [options]="barOptions" type="bar"></canvas>
-            <div *ngIf="!isBrowser" class="chart-placeholder">Department Chart</div>
-          </div>
-        </div>
-        <div class="widget">
-          <div class="widget-header">
-            <h3 class="widget-title">Leave Status Distribution</h3>
-            <span class="widget-actions">🏖️</span>
-          </div>
-          <div class="widget-content">
-            <canvas *ngIf="isBrowser" baseChart [data]="leaveStatusData" [options]="doughnutOptions" type="doughnut"></canvas>
-            <div *ngIf="!isBrowser" class="chart-placeholder">Leave Status Chart</div>
-          </div>
-        </div>
-      </div>
-      
-      <div class="dashboard-grid two-column">
-        <div class="widget">
-          <div class="widget-header">
-            <h3 class="widget-title">Performance Overview</h3>
-            <span class="widget-actions">⭐</span>
-          </div>
-          <div class="widget-content">
-            <canvas *ngIf="isBrowser" baseChart [data]="performanceData" [options]="barOptions" type="bar"></canvas>
-            <div *ngIf="!isBrowser" class="chart-placeholder">Performance Chart</div>
-          </div>
-        </div>
-        <div class="widget">
-          <div class="widget-header">
-            <h3 class="widget-title">Recruitment Pipeline</h3>
-            <span class="widget-actions">👥</span>
-          </div>
-          <div class="widget-content">
-            <canvas *ngIf="isBrowser" baseChart [data]="recruitmentData" [options]="horizontalBarOptions" type="bar"></canvas>
-            <div *ngIf="!isBrowser" class="chart-placeholder">Recruitment Chart</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  `,
-  styles: [`
-    .dashboard-container {
-      padding: 0;
-      height: auto;
-      background: transparent;
-    }
-    .chart-placeholder {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-muted);
-      font-style: italic;
-      min-height: 180px;
-    }
-    .widget {
-      min-height: 220px;
-    }
-    .widget-content {
-      min-height: 150px;
-    }
-  `]
+  templateUrl: './dashboard-section.component.html',
+  styleUrls: ['./dashboard-section.component.scss']
 })
 export class DashboardSectionComponent implements OnInit {
-  summary = { 
-    headcount: 0, 
-    activeLeaves: 0, 
-    attendanceRate: 95, 
-    newHires: 8 
-  };
-  isBrowser: boolean;
+  isBrowser: boolean = false;
+  departments: Department[] = [];
   
-  attendanceTrendData: ChartConfiguration['data'] = {
-    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-    datasets: [{ 
-      label: 'Attendance %',
-      data: [94, 96, 93, 95, 97, 95], 
-      borderColor: '#2563EB',
-      backgroundColor: 'rgba(37, 99, 235, 0.1)',
-      fill: true,
-      tension: 0.4,
-      pointBackgroundColor: '#2563EB',
-      pointBorderColor: '#fff',
-      pointBorderWidth: 2,
-      pointRadius: 4
-    }]
+  
+  // KPI Data
+  kpiData = {
+    avgAttendance: 92.5,
+    employees: 1248,
+    leaves: 28,
+    performance: 4.2
   };
 
-  leaveStatusData: ChartConfiguration['data'] = {
-    labels: ['Approved', 'Pending', 'Rejected'],
-    datasets: [{ 
-      data: [65, 25, 10], 
-      backgroundColor: ['#16A34A', '#F59E0B', '#DC2626'],
+  // Upcoming Holidays
+  upcomingHolidays: Holiday[] = [
+    { name: 'New Year\'s Day', date: new Date(2024, 0, 1), day: '01', month: 'JAN', type: 'Public Holiday' },
+    { name: 'Republic Day', date: new Date(2024, 0, 26), day: '26', month: 'JAN', type: 'Public Holiday' },
+    { name: 'Holi', date: new Date(2024, 2, 8), day: '08', month: 'MAR', type: 'Festival' },
+    { name: 'Good Friday', date: new Date(2024, 3, 29), day: '29', month: 'MAR', type: 'Public Holiday' },
+    { name: 'Eid al-Fitr', date: new Date(2024, 4, 10), day: '10', month: 'APR', type: 'Public Holiday' }
+  ];
+
+  // Recent Leave Requests
+  recentLeaveRequests: LeaveRequest[] = [
+    { id: 1, employee: 'John Doe', type: 'Sick Leave', startDate: '15 Mar 2024', endDate: '17 Mar 2024', status: 'approved', avatar: 'JD' },
+    { id: 2, employee: 'Jane Smith', type: 'Casual Leave', startDate: '18 Mar 2024', endDate: '19 Mar 2024', status: 'pending', avatar: 'JS' },
+    { id: 3, employee: 'Robert Johnson', type: 'Annual Leave', startDate: '20 Mar 2024', endDate: '25 Mar 2024', status: 'approved', avatar: 'RJ' },
+    { id: 4, employee: 'Emily Davis', type: 'Work From Home', startDate: '16 Mar 2024', endDate: '16 Mar 2024', status: 'approved', avatar: 'ED' },
+    { id: 5, employee: 'Michael Brown', type: 'Sick Leave', startDate: '14 Mar 2024', endDate: '15 Mar 2024', status: 'rejected', avatar: 'MB' }
+  ];
+  
+  // Attendance Data
+  attendanceData = {
+    present: 52,
+    late: 10,
+    absent: 15,
+    halfDay: 4,
+    get total() {
+      return this.present + this.late + this.absent + this.halfDay;
+    },
+    get presentPercentage() {
+      return Math.round((this.present / this.total) * 100);
+    }
+  };
+
+  // Donut Chart Configuration
+  donutChartData = {
+    labels: ['Present', 'Late', 'Absent', 'Half Day'],
+    datasets: [{
+      data: [52, 10, 15, 4],
+      backgroundColor: ['#10B981', '#EF4444', '#9CA3AF', '#F59E0B'],
       borderWidth: 0,
-      hoverBackgroundColor: ['#15803d', '#d97706', '#b91c1c']
+      cutout: '70%',
+      spacing: 3,
+      borderRadius: 8
     }]
   };
 
-  performanceData: ChartConfiguration['data'] = {
-    labels: ['Excellent', 'Good', 'Average', 'Needs Improvement'],
-    datasets: [{ 
-      label: 'Employees', 
-      data: [12, 18, 8, 3], 
-      backgroundColor: ['#16A34A', '#2563EB', '#F59E0B', '#DC2626'],
-      borderRadius: 4,
-      borderSkipped: false
-    }]
-  };
-
-  recruitmentData: ChartConfiguration['data'] = {
-    labels: ['Applied', 'Screening', 'Interview', 'Offer', 'Hired'],
-    datasets: [{ 
-      label: 'Candidates', 
-      data: [45, 28, 15, 8, 5], 
-      backgroundColor: ['#E5E7EB', '#93C5FD', '#60A5FA', '#3B82F6', '#1D4ED8'],
-      borderRadius: 4,
-      borderSkipped: false
-    }]
-  };
-  
-  deptChartData: ChartConfiguration['data'] = {
-    labels: [],
-    datasets: [{ 
-      label: 'Employees', 
-      data: [], 
-      backgroundColor: ['#2563EB', '#0D9488', '#7C3AED', '#F59E0B', '#16A34A', '#DC2626'],
-      borderRadius: 4,
-      borderSkipped: false
-    }]
-  };
-  
-  lineOptions: ChartConfiguration['options'] = {
+  donutChartOptions: ChartConfiguration<'doughnut'>['options'] = {
     responsive: true,
     maintainAspectRatio: false,
-    plugins: { 
-      legend: { display: false },
-      tooltip: {
-        backgroundColor: 'rgba(0,0,0,0.8)',
-        titleColor: '#fff',
-        bodyColor: '#fff',
-        cornerRadius: 6
-      }
-    },
-    scales: { 
-      y: { 
-        beginAtZero: true,
-        max: 100,
-        grid: { color: 'rgba(0,0,0,0.05)' },
-        ticks: { 
-          font: { size: 9 },
-          callback: function(value) { return value + '%'; }
-        }
+    cutout: '70%',
+    plugins: {
+      legend: {
+        display: false
       },
-      x: {
-        grid: { display: false },
-        ticks: { font: { size: 9 } }
+      tooltip: {
+        enabled: false
       }
-    },
-    elements: {
-      point: { radius: 3, hoverRadius: 5 }
     },
     layout: {
-      padding: { top: 15, bottom: 15, left: 15, right: 15 }
+      padding: 20
+    },
+    animation: {
+      animateScale: true,
+      animateRotate: true
     }
   };
 
-  doughnutOptions: ChartConfiguration['options'] = {
+  // Chart Configurations (for other charts)
+  lineChartOptions: ChartOptions<'line'> = {
     responsive: true,
     maintainAspectRatio: false,
-    plugins: { 
-      legend: { 
-        position: 'bottom',
+    plugins: {
+      legend: {
+        display: true,
+        position: 'top',
         labels: {
-          padding: 8,
+          padding: 20,
           usePointStyle: true,
-          font: { size: 9 },
-          boxWidth: 10,
-          boxHeight: 10
+          pointStyle: 'circle',
+          boxWidth: 8,
+          boxHeight: 8
         }
       },
       tooltip: {
-        backgroundColor: 'rgba(0,0,0,0.8)',
-        titleColor: '#fff',
-        bodyColor: '#fff',
-        cornerRadius: 6
+        enabled: true,
+        backgroundColor: 'white',
+        titleColor: '#1f2937',
+        bodyColor: '#4b5563',
+        borderColor: '#e5e7eb',
+        borderWidth: 1,
+        padding: 12,
+        usePointStyle: true,
+        callbacks: {
+          label: (context: any) => {
+            return `${context.parsed.y}%`;
+          }
+        }
       }
     },
-    layout: {
-      padding: { top: 10, bottom: 10, left: 10, right: 10 }
-    }
-  };
-
-  horizontalBarOptions: ChartConfiguration['options'] = {
-    responsive: true,
-    maintainAspectRatio: false,
-    indexAxis: 'y' as const,
-    plugins: { 
-      legend: { display: false },
-      tooltip: { enabled: true }
-    },
-    scales: { 
-      x: { 
-        beginAtZero: true,
-        grid: { display: false },
-        ticks: { font: { size: 9 } }
+    scales: {
+      x: {
+        grid: {
+          display: false
+        },
+        ticks: {
+          color: '#6b7280'
+        }
       },
       y: {
-        grid: { display: false },
-        ticks: { font: { size: 9 } }
+        beginAtZero: true,
+        grid: {
+          display: true,
+          color: 'rgba(229, 231, 235, 0.5)'
+        },
+        ticks: {
+          color: '#6b7280',
+          font: {
+            size: 11
+          },
+          padding: 8
+        },
+        max: 100
+      }
+    }
+  };
+
+  barChartOptions: ChartOptions<'bar'> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false
+      },
+      tooltip: {
+        enabled: true,
+        backgroundColor: 'white',
+        titleColor: '#1f2937',
+        bodyColor: '#4b5563',
+        borderColor: '#e5e7eb',
+        borderWidth: 1,
+        padding: 12,
+        usePointStyle: true
       }
     },
-    elements: {
-      bar: {
-        borderRadius: 3,
-        borderSkipped: false
+    scales: {
+      x: {
+        grid: {
+          display: true,
+          color: 'rgba(229, 231, 235, 0.5)'
+        },
+        ticks: {
+          color: '#6b7280'
+        }
+      },
+      y: {
+        beginAtZero: true,
+        grid: {
+          display: true,
+          color: 'rgba(229, 231, 235, 0.5)'
+        },
+        ticks: {
+          color: '#6b7280',
+          font: {
+            size: 11
+          }
+        }
       }
+    }
+  };
+
+  // Chart Data
+  attendanceChartData = {
+    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    datasets: [
+      {
+        label: 'Present',
+        data: [92, 95, 90, 88, 94, 65, 30],
+        borderColor: '#4f46e5',
+        backgroundColor: 'rgba(79, 70, 229, 0.1)',
+        borderWidth: 2,
+        tension: 0.3,
+        fill: true,
+        pointBackgroundColor: '#4f46e5',
+        pointBorderColor: '#fff',
+        pointHoverBackgroundColor: '#fff',
+        pointHoverBorderColor: '#4f46e5'
+      },
+      {
+        label: 'Absent',
+        data: [8, 5, 10, 12, 6, 35, 70],
+        borderColor: '#ef4444',
+        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+        borderWidth: 2,
+        tension: 0.3,
+        fill: true,
+        pointBackgroundColor: '#ef4444',
+        pointBorderColor: '#fff',
+        pointHoverBackgroundColor: '#fff',
+        pointHoverBorderColor: '#ef4444'
+      }
+    ]
+  };
+
+  departmentChartData = {
+    labels: ['Development', 'Design', 'Marketing', 'Sales', 'HR', 'Finance', 'Operations'],
+    datasets: [{
+      label: 'Employees',
+      data: [320, 85, 65, 92, 45, 38, 52],
+      backgroundColor: [
+        'rgba(79, 70, 229, 0.8)',
+        'rgba(99, 102, 241, 0.8)',
+        'rgba(129, 140, 248, 0.8)',
+        'rgba(165, 180, 252, 0.8)',
+        'rgba(199, 210, 254, 0.8)',
+        'rgba(219, 234, 254, 0.8)',
+        'rgba(224, 242, 254, 0.8)'
+      ],
+      borderColor: [
+        'rgba(79, 70, 229, 1)',
+        'rgba(99, 102, 241, 1)',
+        'rgba(129, 140, 248, 1)',
+        'rgba(165, 180, 252, 1)',
+        'rgba(199, 210, 254, 1)',
+        'rgba(219, 234, 254, 1)',
+        'rgba(224, 242, 254, 1)'
+      ],
+      borderWidth: 1,
+      borderRadius: 4
+    }]
+  };
+
+  // Doughnut chart options
+  doughnutOptions: ChartOptions<'doughnut'> = {
+    cutout: '70%',
+    plugins: { 
+      legend: { 
+        display: false 
+      },
+      tooltip: {
+        backgroundColor: 'white',
+        titleColor: '#1f2937',
+        bodyColor: '#4b5563',
+        borderColor: '#e5e7eb',
+        borderWidth: 1,
+        padding: 12,
+        usePointStyle: true
+      }
+    }
+  };
+
+  // Horizontal bar chart options
+  horizontalBarOptions: ChartOptions<'bar'> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    indexAxis: 'y',
+    plugins: { 
+      legend: { display: false },
     },
-    layout: {
-      padding: { top: 15, bottom: 15, left: 15, right: 15 }
+    scales: { 
+      x: { beginAtZero: true, grid: { display: false } },
+      y: { grid: { display: false } }
     }
   };
   
-  barOptions: ChartConfiguration['options'] = {
+  barOptions: ChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: { 
       legend: { display: false },
-      tooltip: { enabled: true }
     },
     scales: { 
-      y: { 
-        beginAtZero: true,
-        grid: { display: false },
-        ticks: { 
-          font: { size: 9 },
-          maxTicksLimit: 5
-        }
-      },
-      x: {
-        grid: { display: false },
-        ticks: { 
-          font: { size: 9 },
-          maxRotation: 0
-        }
-      }
-    },
-    elements: {
-      bar: {
-        borderRadius: 3,
-        borderSkipped: false
-      }
-    },
-    layout: {
-      padding: { top: 15, bottom: 15, left: 15, right: 15 }
+      y: { beginAtZero: true, grid: { display: true } },
+      x: { grid: { display: false } }
     }
   };
 
   constructor(
     private dataService: DataService, 
     private filterService: FilterService,
+    private departmentService: DepartmentService,
     @Inject(PLATFORM_ID) platformId: Object
   ) {
     this.isBrowser = isPlatformBrowser(platformId);
   }
 
-  ngOnInit() {
-    // No data available - waiting for API response
-    this.filterService.globalFilters.subscribe(filters => {
-      // Data will be loaded when API is available
-      this.summary.headcount = 0;
-      this.updateCharts([]);
-    });
-  }
-
-  private updateCharts(users: any[]) {
-    // Get unique employees from the data
-    const uniqueEmployees = users.reduce((acc, user) => {
-      const key = `${user.first_name}_${user.last_name}`;
-      if (!acc[key]) {
-        acc[key] = user;
+  ngOnInit(): void {
+    this.departmentService.getDepartments().subscribe({
+      next: (departments: Department[]) => {
+        this.departments = departments;
+        this.updateDepartmentChart();
+      },
+      error: (error) => {
+        console.error('Error loading departments:', error);
       }
-      return acc;
-    }, {});
-    
-    const employeeList = Object.values(uniqueEmployees) as any[];
-    
-    // Department distribution from dept field
-    const deptCount = employeeList.reduce((acc, user) => {
-      const dept = user.dept || 'Unknown';
-      acc[dept] = (acc[dept] || 0) + 1;
-      return acc;
-    }, {});
-    
-    this.deptChartData.labels = Object.keys(deptCount);
-    this.deptChartData.datasets[0].data = Object.values(deptCount);
-    
-    // Update summary with unique employee count and calculated metrics
-    this.summary.headcount = employeeList.length;
-    this.summary.activeLeaves = Math.floor(employeeList.length * 0.12); // 12% on leave
-    this.summary.attendanceRate = Math.floor(Math.random() * 5) + 93; // 93-97%
-    this.summary.newHires = Math.floor(Math.random() * 5) + 6; // 6-10 new hires
-    
-    // Update attendance trend with some variation
-    const baseAttendance = [94, 96, 93, 95, 97, 95];
-    this.attendanceTrendData.datasets[0].data = baseAttendance.map(val => 
-      val + Math.floor(Math.random() * 4) - 2 // ±2% variation
-    );
+    });
   }
 
-
-
-  private applyFilters(data: any[], filters: any) {
-    return data.filter((item: any) => {
-      if (filters.department && item.dept !== filters.department) return false;
-      if (filters.team && item.team !== filters.team) return false;
-      if (filters.search && !`${item.first_name} ${item.last_name}`.toLowerCase().includes(filters.search.toLowerCase())) return false;
-      return true;
-    });
+  private updateDepartmentChart() {
+    if (this.departments.length > 0) {
+      const employeeCounts = this.departments.map(() => Math.floor(Math.random() * 50) + 10);
+      this.departmentChartData.labels = this.departments.map(dept => dept.name);
+      this.departmentChartData.datasets[0].data = employeeCounts;
+    }
   }
 }

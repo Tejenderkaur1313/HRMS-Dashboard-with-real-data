@@ -1,0 +1,53 @@
+<!-- src/app/performance-dashboard/performance-dashboard.component.html -->
+
+<div class="bg-gray-50 min-h-screen p-4 sm:p-6 lg:p-8 font-sans">
+  <div class="max-w-7xl mx-auto">
+    <ng-container *ngIf="dashboardData$ | async as data; else loading">
+      <!-- Dashboard Header -->
+      <header class="mb-8 flex justify-between items-center">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-800">HR Performance Dashboard</h1>
+          <p class="text-gray-500 mt-1">Analyze employee performance across departments.</p>
+        </div>
+        <!-- Global Month Filter -->
+        <div>
+          <label class="text-sm font-medium text-gray-700">Select Month:</label>
+          <select (change)="onMonthFilterChange($event)" class="mt-1 block pl-3 pr-10 py-2 border-gray-300 rounded-md">
+            <option value="July">July</option>
+            <option value="June">June</option>
+          </select>
+        </div>
+      </header>
+
+      <!-- KPI Cards Section -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="bg-white p-6 rounded-lg shadow-md"><h3 class="text-gray-500 text-sm">Overall Performance Score</h3><p class="text-3xl font-bold text-indigo-600 mt-2">{{ data.kpis.overallScore }}</p></div>
+        <div class="bg-white p-6 rounded-lg shadow-md"><h3 class="text-gray-500 text-sm">Top Performing Dept.</h3><p class="text-3xl font-bold text-green-600 mt-2">{{ data.kpis.topDept }}</p></div>
+        <div class="bg-white p-6 rounded-lg shadow-md"><h3 class="text-gray-500 text-sm">Low Performing Dept.</h3><p class="text-3xl font-bold text-red-500 mt-2">{{ data.kpis.lowDept }}</p></div>
+        <div class="bg-white p-6 rounded-lg shadow-md"><h3 class="text-gray-500 text-sm">% Employees Meeting Targets</h3><p class="text-3xl font-bold text-sky-600 mt-2">{{ data.kpis.targetMetPercent }}%</p></div>
+      </div>
+
+      <!-- Charts Section -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Performance Trend (Line Chart) -->
+        <div class="bg-white p-6 rounded-lg shadow-md lg:col-span-2 h-96"><h3 class="font-semibold text-gray-800">Performance Trend</h3><ngx-charts-line-chart [results]="data.performanceTrend" [xAxis]="true" [yAxis]="true" [scheme]="lineChartColorScheme"></ngx-charts-line-chart></div>
+        <!-- Overall Distribution (Doughnut Chart) -->
+        <div class="bg-white p-6 rounded-lg shadow-md h-96"><h3 class="font-semibold text-gray-800">Performance Distribution</h3><ngx-charts-pie-chart [results]="data.performanceDistribution" [doughnut]="true" [legend]="true" [legendPosition]="'below'" [scheme]="pieChartColorScheme"></ngx-charts-pie-chart></div>
+        <!-- Department Comparison (Bar Chart) -->
+        <div class="bg-white p-6 rounded-lg shadow-md lg:col-span-2 h-96"><h3 class="font-semibold text-gray-800">Avg Performance by Dept</h3><ngx-charts-bar-vertical [results]="data.departmentComparison" [xAxis]="true" [yAxis]="true" [scheme]="barChartColorScheme"></ngx-charts-bar-vertical></div>
+        <!-- Top Performers (List) -->
+        <div class="bg-white p-6 rounded-lg shadow-md h-96 overflow-y-auto">
+          <h3 class="font-semibold text-gray-800 mb-4">Top 5 Performers</h3>
+          <div class="space-y-3">
+            <div *ngFor="let p of data.topPerformers" class="flex justify-between items-center text-sm p-2 rounded-md hover:bg-gray-50">
+              <p class="text-gray-700">{{ p.name }}</p><p class="font-bold text-indigo-600 bg-indigo-100 px-2 py-1 rounded-full">{{ p.rating }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+
+    <!-- Loading Template -->
+    <ng-template #loading><p>Loading Performance Data...</p></ng-template>
+  </div>
+</div>```

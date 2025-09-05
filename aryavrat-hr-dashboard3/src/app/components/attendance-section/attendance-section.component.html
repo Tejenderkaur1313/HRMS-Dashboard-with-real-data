@@ -1,0 +1,146 @@
+<!-- attendance-section.component.html -->
+
+<div class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+    <!-- Dashboard Header -->
+    <header class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">📊 Attendance & Productivity Analytics Dashboard</h1>
+        <p class="text-gray-500 mt-1">Real-time insights into workforce attendance and productivity patterns.</p>
+    </header>
+
+    <!-- Loading State -->
+    <div *ngIf="isLoadingData" class="flex flex-col items-center justify-center py-12">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+        <p class="text-gray-600 text-lg">{{ loadingMessage }}</p>
+        <p class="text-gray-400 text-sm mt-2">Processing your July month data...</p>
+    </div>
+
+    <!-- Main Content - Only show when not loading -->
+    <div *ngIf="!isLoadingData">
+        <!-- KPI Row: Workforce Overview -->
+        <h2 class="text-lg font-semibold text-gray-700 mb-4">Workforce Overview</h2>
+        <div class="kpi-row">
+            <div class="kpi-card" style="border-left-color: var(--primary-accent);">
+                <div class="kpi-value">{{ attendanceStats.totalEmployees }}</div>
+                <div class="kpi-label">Total Employees</div>
+                <div class="kpi-trend">Active workforce</div>
+            </div>
+            <div class="kpi-card" style="border-left-color: var(--warning);">
+                <div class="kpi-value">{{ attendanceStats.attendanceRate }}%</div>
+                <div class="kpi-label">Attendance Rate</div>
+                <div class="kpi-trend">Overall attendance</div>
+            </div>
+            <div class="kpi-card" style="border-left-color: var(--info);">
+                <div class="kpi-value">{{ attendanceStats.avgProductiveHours }}h</div>
+                <div class="kpi-label">Avg Productive Hours</div>
+                <div class="kpi-trend">Daily average</div>
+            </div>
+            <div class="kpi-card" style="border-left-color: var(--teal);">
+                <div class="kpi-value">{{ attendanceStats.avgIdleTime }}h</div>
+                <div class="kpi-label">Avg Idle Time</div>
+                <div class="kpi-trend">Non-productive hours</div>
+            </div>
+            <div class="kpi-card" style="border-left-color: var(--warning);">
+                <div class="kpi-value">{{ attendanceStats.productivityTrend | number:'1.1-1' }}%</div>
+                <div class="kpi-label">Productivity Score</div>
+                <div class="kpi-trend">Against 9.5h target</div>
+            </div>
+        </div>
+
+        <!-- Charts Grid Container -->
+        <div class="charts-grid-container mt-6">
+            <!-- Chart 1: Weekly Trend -->
+            <div class="bg-white p-5 rounded-xl shadow chart-card">
+                <div class="flex flex-wrap justify-between items-start mb-4 gap-2">
+                    <h3 class="text-lg font-semibold text-gray-800">Attendance & Productivity Trend</h3>
+                    <div class="flex items-center gap-2">
+                        <select [(ngModel)]="weeklyTrendDateFilter" (ngModelChange)="onFilterChange('weekly')" class="filter-select">
+                            <option value="week">Weekly</option>
+                            <option value="month">Monthly</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="productivity-line-chart" style="height: 280px;">
+                    <canvas *ngIf="isBrowser" baseChart [data]="weeklyTrendData" [options]="weeklyTrendOptions" type="line"></canvas>
+                    <div *ngIf="!isBrowser" class="chart-placeholder">Trend Chart</div>
+                </div>
+            </div>
+
+            <!-- Chart 2: Time Distribution -->
+            <div class="bg-white p-5 rounded-xl shadow chart-card">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Daily Time Distribution (Productive vs. Idle)</h3>
+                <div id="time-donut-chart" style="height: 280px;">
+                    <canvas *ngIf="isBrowser" baseChart [data]="timeDistributionData" [options]="donutOptions" type="doughnut"></canvas>
+                    <div *ngIf="!isBrowser" class="chart-placeholder">Time Distribution Chart</div>
+                </div>
+            </div>
+
+            <!-- Chart 3: Productivity by Weekday -->
+            <div class="bg-white p-5 rounded-xl shadow chart-card">
+                 <div class="flex flex-wrap justify-between items-start mb-4 gap-2">
+                    <h3 class="text-lg font-semibold text-gray-800">Productivity by Weekday</h3>
+                    <div class="flex items-center gap-2">
+                        <select [(ngModel)]="weekdayTimeFilter" (ngModelChange)="onFilterChange('weekday')" class="filter-select">
+                            <option value="month">Monthly</option>
+                            <option value="weekly">Weekly</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="weekday-chart-container" style="height: 280px;">
+                    <canvas *ngIf="isBrowser" baseChart [data]="weekdayProductivityData" [options]="weekdayBarOptions" type="bar"></canvas>
+                    <div *ngIf="!isBrowser" class="chart-placeholder">Weekday Productivity Chart</div>
+                </div>
+            </div>
+
+            <!-- Chart 5: Department Productivity -->
+            <div class="bg-white p-5 rounded-xl shadow chart-card">
+                <div class="flex flex-wrap justify-between items-start mb-4 gap-2">
+                    <h3 class="text-lg font-semibold text-gray-800">Department-wise Productivity</h3>
+                    <div class="flex items-center gap-2">
+                        <select [(ngModel)]="deptProdTimeFilter" (ngModelChange)="onFilterChange('department')" class="filter-select">
+                            <option value="month">Monthly</option>
+                            <option value="week">Weekly</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="bubble-bar-chart-container" style="height: 280px;">
+                    <canvas *ngIf="isBrowser" baseChart [data]="departmentProductivityData" [options]="bubbleBarOptions" type="bar"></canvas>
+                    <div *ngIf="!isBrowser" class="chart-placeholder">Department Productivity Chart</div>
+                </div>
+            </div>
+
+            <!-- Chart 6: Top Consistent Employees -->
+            <div class="bg-white p-5 rounded-xl shadow chart-card">
+                <div class="flex flex-wrap justify-between items-start mb-4 gap-2">
+                    <h3 class="text-lg font-semibold text-gray-800">Top Consistent Employees</h3>
+                    <div class="flex items-center gap-2">
+                        <select [(ngModel)]="topPerformersTimeFilter" (ngModelChange)="onFilterChange('topPerformers')" class="filter-select">
+                           <option value="month">Last Month</option>
+                           <option value="week">Last Week</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="w-full text-sm text-left text-gray-500">
+                        <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0">
+                            <tr>
+                                <th class="px-6 py-3">Employee</th>
+                                <th class="px-6 py-3">Department</th>
+                                <th class="px-6 py-3">Attendance %</th>
+                                <th class="px-6 py-3">Avg Productive Hours</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr *ngFor="let employee of topEmployees" class="bg-white border-b hover:bg-gray-50">
+                                <td class="px-6 py-4 font-medium text-gray-900">{{ employee.name }}</td>
+                                <td class="px-6 py-4">{{ employee.dept || 'Unknown' }}</td>
+                                <td class="px-6 py-4">{{ employee.attendance }}%</td>
+                                <td class="px-6 py-4">{{ employee.productiveHours }}h</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>

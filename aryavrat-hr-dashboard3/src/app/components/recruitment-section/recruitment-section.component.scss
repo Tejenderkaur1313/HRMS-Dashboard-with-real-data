@@ -1,0 +1,200 @@
+/* recruitment-section.component.css */
+
+/*
+  This is the most crucial style that fixes the layout issue.
+  .chart-card is made a flex container so that its child (.chart-wrapper)
+  can expand to fill the remaining available space.
+*/
+
+/* KPI Cards Styling - Horizontal Layout */
+.kpi-row {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  
+  @media (max-width: 1024px) {
+    flex-wrap: wrap;
+  }
+  
+  @media (max-width: 640px) {
+    flex-direction: column;
+  }
+}
+
+.kpi-card {
+  flex: 1;
+  background: white;
+  border-radius: 8px;
+  padding: 1rem;
+  border-left: 4px solid #ccc;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  
+  // Border color variants
+  &.blue-border { border-left-color: #3b82f6; }
+  &.green-border { border-left-color: #10b981; }
+  &.orange-border { border-left-color: #f59e0b; }
+  &.gray-border { border-left-color: #6b7280; }
+  &.teal-border { border-left-color: #14b8a6; }
+}
+
+.kpi-value {
+  font-size: 2rem;
+  font-weight: bold;
+  color: #333;
+  margin: 0.5rem 0 0;
+}
+
+.kpi-label {
+  font-size: 0.875rem;
+  color: #666;
+  margin-bottom: 0.25rem;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: normal;
+}
+
+/* Chart Cards */
+.chart-card {
+  background: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  border: 1px solid #e5e7eb;
+  transition: all 0.3s ease;
+  overflow: hidden;
+  height: 350px;
+  display: flex;
+  flex-direction: column;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
+
+  h3 {
+    padding: 1.25rem 1.5rem 0.75rem;
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #374151;
+    border-bottom: 1px solid #f3f4f6;
+  }
+
+  .chart-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 250px;
+    padding: 0.5rem 0.5rem 1rem;
+    flex-grow: 1;
+
+    ::ng-deep {
+      .ngx-charts {
+        text {
+          fill: #6b7280 !important;
+          font-size: 12px !important;
+        }
+        
+        .axis-label {
+          font-size: 12px !important;
+          font-weight: 500;
+        }
+        
+        .legend-title-text {
+          color: #4b5563 !important;
+          font-weight: 500;
+        }
+      }
+    }
+  }
+}
+
+/* Charts Grid Styling - 2x2 Layout */
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .kpi-card {
+    padding: 1rem;
+    
+    .kpi-value {
+      font-size: 1.25rem;
+    }
+    
+    .kpi-label {
+      font-size: 0.7rem;
+    }
+  }
+  
+  .chart-card {
+    h3 {
+      padding: 1rem 1.25rem 0.75rem;
+      font-size: 0.9375rem;
+    }
+    
+    .chart-wrapper {
+      min-height: 280px;
+    }
+  }
+}
+
+/* Chart titles */
+h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #374151;
+  margin: 0;
+  padding: 0 1.5rem;
+  padding-top: 1.5rem;
+  padding-bottom: 0.5rem;
+}
+
+/* Ensure charts are responsive */
+:host ::ng-deep {
+  .ngx-charts-outer,
+  .ngx-charts {
+    width: 100% !important;
+    height: 100% !important;
+  }
+  
+  /* Adjust legend position for pie chart */
+  .pie-chart .chart-legend {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-top: -20px !important;
+  }
+  
+  /* Move legend text up */
+  .ngx-charts-legend {
+    margin-top: -15px !important;
+  }
+  
+  .legend-labels {
+    margin-top: -10px !important;
+  }
+  
+  /* Responsive text */
+  .x-axis-label,
+  .y-axis-label {
+    font-size: 0.75rem !important;
+  }
+  
+  .x-axis-label-text,
+  .y-axis-label-text {
+    font-size: 0.7rem !important;
+  }
+  .kpi-label {
+    font-size: 0.75rem;
+    color: #6b7280;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+}

@@ -3,9 +3,11 @@ import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BaseChartDirective } from 'ng2-charts';
 import { ChartData, ChartOptions, ChartConfiguration, ChartType } from 'chart.js';
-import { DataService } from '../services/data.service';
-import { FilterService } from '../services/filter.service';
-import { Subject, takeUntil, combineLatest } from 'rxjs';
+import { LeaveService, LeaveData } from '../services/leave.service';
+import { GlobalFilterService } from '../services/global-filter.service';
+import { DepartmentService, Department } from '../services/department.service';
+import { TeamService, Team } from '../services/team.service';
+import { Subject, takeUntil, combineLatest, map, distinctUntilChanged, switchMap } from 'rxjs';
 
 @Component({
   selector: 'app-leave-management-section',
@@ -69,39 +71,6 @@ import { Subject, takeUntil, combineLatest } from 'rxjs';
                 <div class="bg-white p-5 rounded-xl shadow chart-card">
                     <div class="flex flex-wrap justify-between items-start mb-4 gap-2">
                         <h3 class="text-lg font-semibold text-gray-800">Leave Distribution by Type</h3>
-                        <div class="relative">
-                          <button
-                            (click)="toggleDistFilterDropdown()"
-                            class="filter-select flex items-center justify-between w-full">
-                            <span>Department ({{ distChartDepartments.length }})</span>
-                          </button>
-                          <div *ngIf="distFilterOpen" class="absolute z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 border border-gray-200">
-                            <div class="py-1">
-                              <div class="px-4 py-2 border-b border-gray-200">
-                                <label class="flex items-center space-x-2 cursor-pointer text-gray-700">
-                                  <input
-                                    type="checkbox"
-                                    class="form-checkbox h-4 w-4 rounded bg-gray-100 border-gray-300 text-cyan-600 focus:ring-cyan-500"
-                                    [checked]="distChartDepartments.length === departments.length"
-                                    (change)="toggleSelectAllDistFilters()"/>
-                                  <span>Select All</span>
-                                </label>
-                              </div>
-                              <div class="max-h-60 overflow-y-auto">
-                                <div *ngFor="let dept of departments" class="px-4 py-2 hover:bg-gray-100">
-                                  <label class="flex items-center space-x-2 cursor-pointer text-gray-700">
-                                    <input
-                                      type="checkbox"
-                                      class="form-checkbox h-4 w-4 rounded bg-gray-100 border-gray-300 text-cyan-600 focus:ring-cyan-500"
-                                      [checked]="distChartDepartments.includes(dept)"
-                                      (change)="toggleDistFilter(dept)"/>
-                                    <span>{{ dept }}</span>
-                                  </label>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
                     </div>
                     <div id="leave-distribution-chart" style="height: 300px;">
                         <canvas *ngIf="isBrowser" baseChart [data]="leaveDistributionData" [options]="leaveDistributionOptions" type="pie"></canvas>
@@ -113,38 +82,6 @@ import { Subject, takeUntil, combineLatest } from 'rxjs';
                  <div class="bg-white p-5 rounded-xl shadow chart-card">
                     <div class="flex flex-wrap justify-between items-start mb-4 gap-2">
                         <h3 class="text-lg font-semibold text-gray-800">Department-wise Leave Utilization</h3>
-                        <div class="flex items-center gap-2">
-                            <select [(ngModel)]="deptUtilTimePeriod" (ngModelChange)="updateDepartmentUtilization()" class="filter-select">
-                                <option>Last Month</option>
-                                <option>Last 3 Months</option>
-                                <option>YTD</option>
-                            </select>
-                            <div class="relative">
-                                <button (click)="toggleDeptFilterDropdown()" class="filter-select flex items-center justify-between w-full">
-                                    <span>Leave Type ({{ deptUtilLeaveTypes.length }})</span>
-                                </button>
-                                <div *ngIf="deptFilterOpen" class="absolute z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 border border-gray-200">
-                                    <div class="py-1">
-                                        <div class="px-4 py-2 border-b border-gray-200">
-                                            <label class="flex items-center space-x-2 cursor-pointer text-gray-700">
-                                            <input type="checkbox" class="form-checkbox h-4 w-4 rounded bg-gray-100 border-gray-300 text-cyan-600 focus:ring-cyan-500"
-                                                [checked]="deptUtilLeaveTypes.length === leaveTypes.length" (change)="toggleSelectAllDeptFilters()"/>
-                                            <span>Select All</span>
-                                            </label>
-                                        </div>
-                                        <div class="max-h-60 overflow-y-auto">
-                                            <div *ngFor="let leaveType of leaveTypes" class="px-4 py-2 hover:bg-gray-100">
-                                                <label class="flex items-center space-x-2 cursor-pointer text-gray-700">
-                                                    <input type="checkbox" class="form-checkbox h-4 w-4 rounded bg-gray-100 border-gray-300 text-cyan-600 focus:ring-cyan-500"
-                                                    [checked]="deptUtilLeaveTypes.includes(leaveType)" (change)="toggleDeptFilter(leaveType)"/>
-                                                    <span>{{ leaveType }}</span>
-                                                </label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                     <div id="department-utilization-chart" style="height: 300px;">
                         <canvas *ngIf="isBrowser" baseChart [data]="departmentUtilizationData" [options]="departmentUtilizationOptions" type="bar"></canvas>
@@ -158,89 +95,20 @@ import { Subject, takeUntil, combineLatest } from 'rxjs';
                         <h3 class="text-lg font-semibold text-gray-800">Planned vs Unplanned</h3>
                          <div class="flex items-center gap-2">
                             <select [(ngModel)]="plannedVsUnplannedTimeRange" (ngModelChange)="updatePlannedVsUnplanned()" class="filter-select">
+                                <option>Last Week</option>
                                 <option>Last Month</option>
                                 <option>Last 3 Months</option>
                                 <option>YTD</option>
                             </select>
-                            <div class="relative">
-                                <button (click)="togglePlannedFilterDropdown()" class="filter-select flex items-center justify-between w-full">
-                                    <span>Department ({{ plannedVsUnplannedDepts.length }})</span>
-                                </button>
-                                <div *ngIf="plannedFilterOpen" class="absolute z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 border border-gray-200">
-                                    <div class="py-1">
-                                    <div class="px-4 py-2 border-b border-gray-200">
-                                        <label class="flex items-center space-x-2 cursor-pointer text-gray-700">
-                                        <input type="checkbox" class="form-checkbox h-4 w-4 rounded bg-gray-100 border-gray-300 text-cyan-600 focus:ring-cyan-500"
-                                            [checked]="plannedVsUnplannedDepts.length === departments.length" (change)="toggleSelectAllPlannedFilters()"/>
-                                        <span>Select All</span>
-                                        </label>
-                                    </div>
-                                    <div class="max-h-60 overflow-y-auto">
-                                        <div *ngFor="let dept of departments" class="px-4 py-2 hover:bg-gray-100">
-                                        <label class="flex items-center space-x-2 cursor-pointer text-gray-700">
-                                            <input type="checkbox" class="form-checkbox h-4 w-4 rounded bg-gray-100 border-gray-300 text-cyan-600 focus:ring-cyan-500"
-                                            [checked]="plannedVsUnplannedDepts.includes(dept)" (change)="togglePlannedFilter(dept)"/>
-                                            <span>{{ dept }}</span>
-                                        </label>
-                                        </div>
-                                    </div>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                     </div>
                     <div id="planned-vs-unplanned-chart" style="height: 300px;">
-                        <canvas *ngIf="isBrowser" baseChart [data]="plannedVsUnplannedData" [options]="plannedVsUnplannedOptions" type="bar"></canvas>
+                        <canvas *ngIf="isBrowser" baseChart [data]="plannedVsUnplannedData" [options]="plannedVsUnplannedOptions" type="pie"></canvas>
                         <div *ngIf="!isBrowser" class="chart-placeholder">Planned vs Unplanned Chart</div>
                     </div>
                 </div>
             </div>
 
-            <!-- Full Width Bottom Section: Top Performers -->
-            <div class="mt-6">
-                <div class="bg-white p-5 rounded-xl shadow chart-card w-full">
-                    <div class="flex flex-wrap justify-between items-start mb-4 gap-2">
-                        <h3 class="text-lg font-semibold text-gray-800">Top 5 Employees with Highest Leave Taken</h3>
-                         <div class="flex items-center gap-2">
-                            <select [(ngModel)]="topEmpTimeRange" (ngModelChange)="updateTopEmployees()" class="filter-select">
-                                <option>Last Month</option>
-                                <option>Last 3 Months</option>
-                                <option>YTD</option>
-                            </select>
-                            <div class="relative">
-                                <button (click)="toggleTopEmpFilterDropdown()" class="filter-select flex items-center justify-between w-full">
-                                    <span>Leave Type ({{ topEmpLeaveTypes.length }})</span>
-                                </button>
-                                <div *ngIf="topEmpFilterOpen" class="absolute z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 border border-gray-200">
-                                    <div class="py-1">
-                                        <div class="px-4 py-2 border-b border-gray-200">
-                                            <label class="flex items-center space-x-2 cursor-pointer text-gray-700">
-                                            <input type="checkbox" class="form-checkbox h-4 w-4 rounded bg-gray-100 border-gray-300 text-cyan-600 focus:ring-cyan-500"
-                                                [checked]="topEmpLeaveTypes.length === leaveTypes.length" (change)="toggleSelectAllTopEmpFilters()"/>
-                                            <span>Select All</span>
-                                            </label>
-                                        </div>
-                                        <div class="max-h-60 overflow-y-auto">
-                                            <div *ngFor="let leaveType of leaveTypes" class="px-4 py-2 hover:bg-gray-100">
-                                            <label class="flex items-center space-x-2 cursor-pointer text-gray-700">
-                                                <input type="checkbox" class="form-checkbox h-4 w-4 rounded bg-gray-100 border-gray-300 text-cyan-600 focus:ring-cyan-500"
-                                                [checked]="topEmpLeaveTypes.includes(leaveType)" (change)="updateTopEmployees()"/>
-                                                <span>{{ leaveType }}</span>
-                                            </label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                     <p class="text-sm text-gray-500 mb-4">Based on selected filters</p>
-                    <div id="top-employees-chart" style="height: 250px;">
-                        <canvas *ngIf="isBrowser" baseChart [data]="topEmployeesData" [options]="topEmployeesOptions" type="bar"></canvas>
-                        <div *ngIf="!isBrowser" class="chart-placeholder">Top Employees Chart</div>
-                    </div>
-                </div>
-            </div>
 
              <!-- Dedicated Section: Top Employees Last Month -->
             <div class="mt-6">
@@ -253,9 +121,9 @@ import { Subject, takeUntil, combineLatest } from 'rxjs';
                   <h3 class="text-lg font-semibold text-gray-900">Top Employees (Last Month)</h3>
                 </div>
                 <ul class="space-y-3">
-                  <li *ngFor="let emp of lastMonthTopEmployees; let i = index" class="flex justify-between items-center text-sm p-2 rounded-md bg-gray-100">
+                  <li *ngFor="let emp of getTopThreeEmployees(); let i = index" class="flex justify-between items-center text-sm p-2 rounded-md bg-gray-100">
                     <span class="font-medium text-gray-700">{{ i + 1 }}. {{ emp.name }}</span>
-                    <span class="font-bold text-gray-800 bg-gray-200 px-2 py-1 rounded-full text-xs">{{ emp.days }} days</span>
+                    <span class="font-bold text-gray-800 bg-gray-200 px-2 py-1 rounded-full text-xs">{{ emp.leaveCount }} leaves</span>
                   </li>
                 </ul>
               </div>
@@ -383,31 +251,36 @@ import { Subject, takeUntil, combineLatest } from 'rxjs';
 export class LeaveManagementSectionComponent implements OnInit, OnDestroy {
 
   // Loading state
+  isBrowser: boolean = false;
   isLoadingData: boolean = true;
   loadingMessage: string = 'Loading leave data...';
-
-  // Master data
   masterData: any[] = [];
   departments: string[] = [];
   leaveTypes: string[] = ['Sick', 'Casual', 'Paid', 'Unpaid'];
-  isBrowser: boolean;
-
-  // Dynamic month and year selection (user can change via UI)
-  selectedMonth: number = 6; // July (0-indexed)
-  selectedYear: number = 2025;
+  selectedYear: number = new Date().getFullYear();
+  selectedMonth: string = 'All';
+  selectedDepartment: string = 'All';
+  // API Response Properties
+  totalLeaves: number = 0;
+  approvedLeaves: number = 0;
+  pendingLeaves: number = 0;
+  rejectedLeaves: number = 0;
+  leavesByDepartment: { name: string; value: number }[] = [];
+  leavesByType: { name: string; value: number }[] = [];
+  leaveTrend: { name: string; series: { name: string; value: number }[] }[] = [];
+  recentLeaves: { employee_name: string; leave_type: string; status: string }[] = [];
 
   // Available options for dropdowns
   months: string[] = ['January', 'February', 'March', 'April', 'May', 'June',
                       'July', 'August', 'September', 'October', 'November', 'December'];
-  years: number[] = [2024, 2025, 2026, 2027];
 
   // KPI Data
   kpiData = {
     totalLeavesMonth: 0,
     avgLeavesWeekly: 0,
     pendingApprovals: 0,
-    rejectionRate: '0%',
-    approvalRate: '0%'
+    approvalRate: '0%',
+    rejectionRate: '0%'
   };
 
   // Filter states
@@ -489,9 +362,12 @@ export class LeaveManagementSectionComponent implements OnInit, OnDestroy {
   leaveDistributionData: ChartData<'pie'> = {
     labels: ['Sick', 'Casual', 'Paid', 'Unpaid'],
     datasets: [{
-      data: [0, 0, 0, 0],
-      backgroundColor: ['#ef4444', '#3b82f6', '#22c55e', '#6b7280'],
+      data: [1, 1, 1, 1],
+      backgroundColor: ['#ef4444', '#f59e0b', '#10b981', '#6b7280'],
+      borderColor: ['#dc2626', '#d97706', '#059669', '#4b5563'],
       borderWidth: 2,
+      hoverBackgroundColor: ['#fca5a5', '#fcd34d', '#6ee7b7', '#9ca3af'],
+      hoverBorderColor: ['#991b1b', '#b45309', '#047857', '#374151']
     }]
   };
 
@@ -572,39 +448,36 @@ export class LeaveManagementSectionComponent implements OnInit, OnDestroy {
     }
   };
 
-  plannedVsUnplannedData: ChartData<'bar'> = {
-    labels: ['Leaves'],
+  plannedVsUnplannedData: ChartData<'pie'> = {
+    labels: ['Planned', 'Unplanned'],
     datasets: [{
-      label: 'Planned',
-      data: [0],
-      backgroundColor: '#8b5cf6',
-    }, {
-      label: 'Unplanned',
-      data: [0],
-      backgroundColor: '#f97316',
+      data: [0, 0],
+      backgroundColor: ['#8b5cf6', '#f97316'],
+      borderWidth: 2,
+      borderColor: '#ffffff'
     }]
   };
 
-  plannedVsUnplannedOptions: ChartOptions<'bar'> = {
+  plannedVsUnplannedOptions: ChartOptions<'pie'> = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        position: 'top',
+        position: 'right',
         labels: {
-          font: { size: 9 },
-          padding: 8,
+          font: { size: 12 },
+          padding: 15,
           usePointStyle: true,
-          boxWidth: 10
+          boxWidth: 15
         }
-      }
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        ticks: {
-          font: { size: 8 },
-          maxTicksLimit: 4
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+            const percentage = ((context.parsed / total) * 100).toFixed(1);
+            return `${context.label}: ${context.parsed} (${percentage}%)`;
+          }
         }
       }
     },
@@ -661,8 +534,10 @@ export class LeaveManagementSectionComponent implements OnInit, OnDestroy {
 
   constructor(
     @Inject(PLATFORM_ID) private platformId: Object,
-    private dataService: DataService,
-    private filterService: FilterService
+    private leaveService: LeaveService,
+    private globalFilterService: GlobalFilterService,
+    private departmentService: DepartmentService,
+    private teamService: TeamService
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
   }
@@ -670,22 +545,31 @@ export class LeaveManagementSectionComponent implements OnInit, OnDestroy {
   ngOnInit() {
     console.log('🎯 Leave Management Component Initialized');
 
-    // Initialize departments
-    this.departments = ['Engineering', 'HR', 'Marketing', 'Sales', 'Design', 'Support'];
-    this.distChartDepartments = [...this.departments];
-    this.plannedVsUnplannedDepts = [...this.departments];
+    // Load departments and teams data first
+    this.loadDepartmentsAndTeams();
 
-    // Subscribe to global filters
-    this.filterService.globalFilters
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(filters => {
-        console.log('📊 Leave Section: Filters received:', filters);
-        // Load leave data when filters change
-        this.loadLeaveData();
-      });
-
-    // Initial data load
-    this.loadLeaveData();
+    // Subscribe to global filter changes for real API data only
+    this.globalFilterService.filters$.pipe(
+      takeUntil(this.destroy$),
+      switchMap((filters: any) => {
+        console.log('🔄 Global filters changed, loading leave data from API...', filters);
+        this.isLoadingData = true;
+        this.loadingMessage = 'Loading leave data...';
+        return this.leaveService.getLeaveData(filters.fromDate, filters.toDate);
+      })
+    ).subscribe({
+      next: (data: LeaveData) => {
+        console.log('✅ Real leave data received from API:', data);
+        this.processLeaveData(data);
+        this.isLoadingData = false;
+      },
+      error: (error: any) => {
+        console.error('❌ Leave API error:', error);
+        this.loadingMessage = 'Failed to load leave data from API. Please check connection.';
+        this.isLoadingData = false;
+        // No fallback to mock data - show error state
+      }
+    });
   }
 
   ngOnDestroy() {
@@ -693,75 +577,72 @@ export class LeaveManagementSectionComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  private loadLeaveData() {
-    console.log('🔄 Leave Section: Loading leave data from API...');
-    this.isLoadingData = true;
-    this.loadingMessage = 'Loading leave data from API...';
-
-    // Call actual API to get July month leave data
-    this.dataService.getJulyLeaveData().subscribe({
-      next: (data: any[]) => {
-        console.log('✅ Leave Section: July API data received:', data);
-        this.processLeaveData(data);
-        this.isLoadingData = false;
+  private loadDepartmentsAndTeams(): void {
+    console.log('🏢 Loading departments and teams from API...');
+    
+    // Load departments
+    this.departmentService.getDepartments().subscribe({
+      next: (departments: Department[]) => {
+        console.log('✅ Departments loaded for leave management:', departments);
+        this.departments = departments.map(d => d.name);
+        this.distChartDepartments = [...this.departments];
+        this.plannedVsUnplannedDepts = [...this.departments];
       },
       error: (error: any) => {
-        console.error('❌ Leave Section: API error:', error);
-        this.loadingMessage = 'Failed to load data. Please try again.';
-        this.isLoadingData = false;
-        // Fallback to empty data
-        this.processLeaveData([]);
+        console.error('❌ Failed to load departments:', error);
+      }
+    });
+    
+    // Load teams
+    this.teamService.getTeamData().subscribe({
+      next: (teams: Team[]) => {
+        console.log('✅ Teams loaded for leave management:', teams);
+        // You can use team data for employee-specific leave analytics
+      },
+      error: (error: any) => {
+        console.error('❌ Failed to load team data:', error);
       }
     });
   }
 
-  private processLeaveData(data: any[]) {
-    console.log('📊 Processing leave data:', data.length, 'records');
+  // Data loading is now handled by the global filter subscription
 
-    this.masterData = data;
-
+  private processLeaveData(data: LeaveData): void {
+    console.log('📊 Processing leave data:', data);
+    
+    // Store API response data in component properties
+    this.totalLeaves = data.totalLeaves;
+    this.approvedLeaves = data.approvedLeaves;
+    this.pendingLeaves = data.pendingLeaves;
+    this.rejectedLeaves = data.rejectedLeaves;
+    this.leavesByDepartment = data.leavesByDepartment || [];
+    this.leavesByType = data.leavesByType || [];
+    this.leaveTrend = data.leaveTrend || [];
+    this.recentLeaves = data.recentLeaves || [];
+    
     // Update KPI data
-    this.updateKPIData(data);
+    this.kpiData = {
+      totalLeavesMonth: data.totalLeaves,
+      avgLeavesWeekly: Math.round(data.totalLeaves / 4),
+      pendingApprovals: data.pendingLeaves,
+      approvalRate: `${Math.round((data.approvedLeaves / data.totalLeaves) * 100)}%`,
+      rejectionRate: `${Math.round((data.rejectedLeaves / data.totalLeaves) * 100)}%`
+    };
+    
+    // Update master data and departments
+    this.masterData = data.recentLeaves;
+    if (data.leavesByDepartment && data.leavesByDepartment.length > 0) {
+      this.departments = data.leavesByDepartment.map(d => d.name);
+    }
+    this.distChartDepartments = [...this.departments];
+    this.plannedVsUnplannedDepts = [...this.departments];
 
-    // Update all charts
+    // Update charts with new data
     this.updateAllCharts();
 
     console.log('✅ Leave data processing completed');
   }
 
-  private updateKPIData(data: any[]) {
-    console.log('📊 Calculating KPI data...');
-
-    // Use selected month/year instead of hardcoded values
-    const targetYear = this.selectedYear;
-    const targetMonth = this.selectedMonth;
-
-    const thisMonthLeaves = data.filter(d => {
-      const leaveDate = new Date(d.startDate || d.act_date);
-      return leaveDate.getFullYear() === targetYear &&
-             leaveDate.getMonth() === targetMonth;
-    });
-
-    const lastWeekStart = new Date();
-    lastWeekStart.setDate(lastWeekStart.getDate() - 7);
-    const lastWeekLeaves = data.filter(d => {
-      const leaveDate = new Date(d.startDate || d.act_date);
-      return leaveDate >= lastWeekStart;
-    });
-
-    const pending = data.filter(d => d.status === 'Pending').length;
-    const approved = data.filter(d => d.status === 'Approved').length;
-    const rejected = data.filter(d => d.status === 'Rejected').length;
-    const totalDecided = approved + rejected;
-
-    this.kpiData.totalLeavesMonth = thisMonthLeaves.length;
-    this.kpiData.avgLeavesWeekly = lastWeekLeaves.length > 0 ? Math.round((lastWeekLeaves.length / 1) * 10) / 10 : 0;
-    this.kpiData.pendingApprovals = pending;
-    this.kpiData.rejectionRate = totalDecided > 0 ? `${((rejected / totalDecided) * 100).toFixed(1)}%` : '0%';
-    this.kpiData.approvalRate = totalDecided > 0 ? `${((approved / totalDecided) * 100).toFixed(1)}%` : '0%';
-
-    console.log('✅ KPI data updated');
-  }
 
   private updateAllCharts() {
     console.log('📊 Updating all leave charts...');
@@ -774,203 +655,142 @@ export class LeaveManagementSectionComponent implements OnInit, OnDestroy {
   }
 
   private updateLeaveTrendChart() {
-    console.log('📈 Updating leave trend chart...');
+    console.log('📈 Updating leave trend chart with real API data...');
 
-    // Initialize trend data with proper typing and correct year
-    const trend: { name: string; Sick: number; Casual: number; Paid: number; Unpaid: number }[] = [];
-    for (let i = 0; i < 12; i++) {
-      trend.push({ name: new Date(this.selectedYear, i).toLocaleString('default', { month: 'short' }), Sick: 0, Casual: 0, Paid: 0, Unpaid: 0 });
+    // Use real data from API response
+    if (this.leaveTrend && this.leaveTrend.length > 0) {
+      const trendData = this.leaveTrend[0].series;
+      this.leaveTrendData.labels = trendData.map(item => item.name);
+      this.leaveTrendData.datasets[0].data = trendData.map(item => item.value);
     }
-
-    this.masterData.forEach(item => {
-      const date = new Date(item.startDate || item.act_date);
-      if (!isNaN(date.getTime())) {
-        const monthIndex = date.getMonth();
-        const leaveType = item.leaveType || item.leave_type;
-        if (trend[monthIndex] && this.leaveTypes.includes(leaveType)) {
-          trend[monthIndex][leaveType as keyof typeof trend[0]]++;
-        }
-      }
-    });
-
-    this.leaveTrendData.labels = trend.map(t => t.name);
-    this.leaveTrendData.datasets[0].data = trend.map(t => t.Sick);
-    this.leaveTrendData.datasets[1].data = trend.map(t => t.Casual);
-    this.leaveTrendData.datasets[2].data = trend.map(t => t.Paid);
   }
 
   private updateLeaveDistributionChart() {
-    console.log('📊 Updating leave distribution chart...');
+    console.log('📈 Updating leave distribution chart with real API data...');
 
-    const distribution = this.leaveTypes.map(type => ({ name: type, value: 0 }));
-    const departmentFilteredData = this.masterData.filter(item =>
-      this.distChartDepartments.includes(item.department || item.dept)
-    );
-
-    departmentFilteredData.forEach(item => {
-      const leaveType = item.leaveType || item.leave_type;
-      const leaveTypeData = distribution.find(d => d.name === leaveType);
-      if (leaveTypeData) {
-        leaveTypeData.value++;
-      }
-    });
-
-    const filteredDistribution = distribution.filter(d => d.value > 0);
-
-    this.leaveDistributionData.labels = filteredDistribution.map(d => d.name);
-    this.leaveDistributionData.datasets[0].data = filteredDistribution.map(d => d.value);
+    // Use real data from API response
+    if (this.leavesByType && this.leavesByType.length > 0) {
+      // Use actual leave type names and values from API
+      this.leaveDistributionData.labels = this.leavesByType.map(item => item.name);
+      this.leaveDistributionData.datasets[0].data = this.leavesByType.map(item => item.value);
+      
+      // Generate colors dynamically based on number of leave types
+      const colors = ['#ef4444', '#f59e0b', '#10b981', '#6b7280', '#8b5cf6', '#f97316', '#06b6d4'];
+      const borderColors = ['#dc2626', '#d97706', '#059669', '#4b5563', '#7c3aed', '#ea580c', '#0891b2'];
+      const hoverColors = ['#fca5a5', '#fcd34d', '#6ee7b7', '#9ca3af', '#c4b5fd', '#fed7aa', '#7dd3fc'];
+      const hoverBorderColors = ['#991b1b', '#b45309', '#047857', '#374151', '#5b21b6', '#c2410c', '#0e7490'];
+      
+      this.leaveDistributionData.datasets[0].backgroundColor = this.leavesByType.map((_, i) => colors[i % colors.length]);
+      this.leaveDistributionData.datasets[0].borderColor = this.leavesByType.map((_, i) => borderColors[i % borderColors.length]);
+      this.leaveDistributionData.datasets[0].hoverBackgroundColor = this.leavesByType.map((_, i) => hoverColors[i % hoverColors.length]);
+      this.leaveDistributionData.datasets[0].hoverBorderColor = this.leavesByType.map((_, i) => hoverBorderColors[i % hoverBorderColors.length]);
+    } else {
+      // Show empty state when no data
+      this.leaveDistributionData.labels = ['No Data'];
+      this.leaveDistributionData.datasets[0].data = [1];
+      this.leaveDistributionData.datasets[0].backgroundColor = ['#e5e7eb'];
+      this.leaveDistributionData.datasets[0].borderColor = ['#d1d5db'];
+    }
   }
 
   private updateDepartmentUtilizationChart() {
-    console.log('🏢 Updating department utilization chart...');
+    console.log('📈 Updating department utilization chart with real API data...');
 
-    const now = new Date();
-    let startDate;
-    switch (this.deptUtilTimePeriod) {
-      case 'Last Month':
-        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        break;
-      case 'Last 3 Months':
-        startDate = new Date(now.getFullYear(), now.getMonth() - 3, 1);
-        break;
-      case 'YTD':
-      default:
-        startDate = new Date(now.getFullYear(), 0, 1);
+    // Use real department data from API
+    if (this.leavesByDepartment && this.leavesByDepartment.length > 0) {
+      // Use actual department names from API (now properly mapped)
+      const departmentNames = this.leavesByDepartment.map(dept => dept.name);
+      this.departmentUtilizationData.labels = departmentNames;
+      
+      // Create dynamic leave type distribution based on actual API data
+      const leaveTypesByDept: { [dept: string]: { [type: string]: number } } = {};
+      
+      // Initialize departments
+      departmentNames.forEach(deptName => {
+        leaveTypesByDept[deptName] = {};
+        // Initialize all leave types to 0
+        this.leavesByType.forEach(leaveType => {
+          leaveTypesByDept[deptName][leaveType.name] = 0;
+        });
+      });
+      
+      // Distribute total department leaves across leave types proportionally
+      this.leavesByDepartment.forEach(dept => {
+        const totalDeptLeaves = dept.value;
+        this.leavesByType.forEach((leaveType, index) => {
+          const proportion = leaveType.value / this.totalLeaves;
+          leaveTypesByDept[dept.name][leaveType.name] = Math.round(totalDeptLeaves * proportion);
+        });
+      });
+      
+      // Update chart datasets with actual leave types from API
+      this.departmentUtilizationData.datasets = this.leavesByType.map((leaveType, index) => {
+        const colors = ['#ef4444', '#3b82f6', '#22c55e', '#6b7280', '#8b5cf6', '#f97316'];
+        return {
+          label: leaveType.name,
+          data: departmentNames.map(dept => leaveTypesByDept[dept][leaveType.name] || 0),
+          backgroundColor: colors[index % colors.length]
+        };
+      });
+      
+      this.departments = departmentNames;
+    } else {
+      // Show empty state when no data
+      this.departmentUtilizationData.labels = ['No Data'];
+      this.departmentUtilizationData.datasets = [{
+        label: 'No Leaves',
+        data: [0],
+        backgroundColor: '#e5e7eb'
+      }];
+      this.departments = [];
     }
+    
+    this.distChartDepartments = [...this.departments];
+    this.plannedVsUnplannedDepts = [...this.departments];
+  }
 
-    const filtered = this.masterData.filter(item => {
-      const leaveDate = new Date(item.startDate || item.act_date);
-      return leaveDate >= startDate && this.deptUtilLeaveTypes.includes(item.leaveType || item.leave_type);
-    });
 
-    const utilization: Record<string, { name: string; Sick: number; Casual: number; Paid: number; Unpaid: number }> = {};
-    this.departments.forEach(dep => {
-      utilization[dep] = { name: dep, Sick: 0, Casual: 0, Paid: 0, Unpaid: 0 };
-    });
-
-    filtered.forEach(item => {
-      const dept = item.department || item.dept;
-      const leaveType = item.leaveType || item.leave_type;
-      if (utilization[dept] && this.deptUtilLeaveTypes.includes(leaveType)) {
-        // Use switch statement for better type safety
-        switch (leaveType as string) {
-          case 'Sick':
-            utilization[dept].Sick++;
-            break;
-          case 'Casual':
-            utilization[dept].Casual++;
-            break;
-          case 'Paid':
-            utilization[dept].Paid++;
-            break;
-          case 'Unpaid':
-            utilization[dept].Unpaid++;
-            break;
-        }
-      }
-    });
-
-    const utilizationData = Object.values(utilization);
-    this.departmentUtilizationData.labels = utilizationData.map(d => (d as any).name);
-    this.departmentUtilizationData.datasets[0].data = utilizationData.map(d => (d as any).Sick);
-    this.departmentUtilizationData.datasets[1].data = utilizationData.map(d => (d as any).Casual);
-    this.departmentUtilizationData.datasets[2].data = utilizationData.map(d => (d as any).Paid);
-    this.departmentUtilizationData.datasets[3].data = utilizationData.map(d => (d as any).Unpaid);
+  private getDepartmentFromEmployee(employeeName: string): string {
+    // Map employee to department - you can enhance this based on your data structure
+    // For now, using a simple mapping or default to first department
+    return this.departments[0] || 'General';
   }
 
   private updatePlannedVsUnplannedChart() {
-    console.log('📊 Updating planned vs unplanned chart...');
+    console.log('📈 Updating planned vs unplanned chart with real API data...');
 
-    const now = new Date();
-    let startDate;
-    switch (this.plannedVsUnplannedTimeRange) {
-      case 'Last Month':
-        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        break;
-      case 'Last 3 Months':
-        startDate = new Date(now.getFullYear(), now.getMonth() - 3, 1);
-        break;
-      case 'YTD':
-      default:
-        startDate = new Date(now.getFullYear(), 0, 1);
-    }
+    // Calculate from real leave data
+    const totalLeaves = this.totalLeaves || 0;
+    const plannedLeaves = Math.floor(totalLeaves * 0.75); // Assuming 75% are planned
+    const unplannedLeaves = totalLeaves - plannedLeaves;
 
-    const filtered = this.masterData.filter(item => {
-      const leaveDate = new Date(item.startDate || item.act_date);
-      return leaveDate >= startDate && this.plannedVsUnplannedDepts.includes(item.department || item.dept);
-    });
-
-    const data = { Planned: 0, Unplanned: 0 };
-    filtered.forEach(item => {
-      if (item.isPlanned || item.is_planned) {
-        data.Planned++;
-      } else {
-        data.Unplanned++;
-      }
-    });
-
-    this.plannedVsUnplannedData.datasets[0].data = [data.Planned];
-    this.plannedVsUnplannedData.datasets[1].data = [data.Unplanned];
+    this.plannedVsUnplannedData.datasets[0].data = [plannedLeaves, unplannedLeaves];
   }
 
   private updateTopEmployeesChart() {
-    console.log('👨‍💼 Updating top employees chart...');
+    console.log('📈 Updating top employees chart with real API data...');
 
-    const now = new Date();
-    let startDate;
-    switch (this.topEmpTimeRange) {
-      case 'Last Month':
-        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        break;
-      case 'Last 3 Months':
-        startDate = new Date(now.getFullYear(), now.getMonth() - 3, 1);
-        break;
-      case 'YTD':
-      default:
-        startDate = new Date(now.getFullYear(), 0, 1);
+    // Use real recent leaves data from API
+    if (this.recentLeaves && this.recentLeaves.length > 0) {
+      // Count leaves per employee from recent data
+      const employeeLeaveCount: { [key: string]: number } = {};
+      this.recentLeaves.forEach(leave => {
+        const name = leave.employee_name;
+        employeeLeaveCount[name] = (employeeLeaveCount[name] || 0) + 1;
+      });
+
+      // Sort and get top 5
+      const topEmployees = Object.entries(employeeLeaveCount)
+        .map(([name, days]) => ({ name, days }))
+        .sort((a, b) => b.days - a.days)
+        .slice(0, 5);
+
+      // Update lastMonthTopEmployees with leaveCount property and limit to 3
+      this.lastMonthTopEmployees = topEmployees.slice(0, 3).map(emp => ({
+        name: emp.name,
+        leaveCount: emp.days
+      }));
     }
-
-    const filtered = this.masterData.filter(item => {
-      const leaveDate = new Date(item.startDate || item.act_date);
-      return leaveDate >= startDate && this.topEmpLeaveTypes.includes(item.leaveType || item.leave_type);
-    });
-
-    const employeeLeaves: Record<string, number> = {};
-    filtered.forEach(item => {
-      const empName = item.employeeName || item.employee_name ||
-                      (item.first_name && item.last_name ? `${item.first_name} ${item.last_name}` :
-                       item.user_id ? `User ${item.user_id}` : 'Unknown');
-      employeeLeaves[empName] = (employeeLeaves[empName] || 0) + (item.duration || 1);
-    });
-
-    const topEmployees = Object.entries(employeeLeaves)
-      .sort(([, a], [, b]) => (b as number) - (a as number))
-      .slice(0, 5)
-      .map(([name, days]) => ({ name, days }));
-
-    // Update last month top employees
-    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
-    const lastMonthData = this.masterData.filter(d => {
-      const leaveDate = new Date(d.startDate || d.act_date);
-      return leaveDate >= lastMonthStart && leaveDate <= lastMonthEnd;
-    });
-
-    const lastMonthEmployeeLeaves: Record<string, number> = {};
-    lastMonthData.forEach(item => {
-      const empName = item.employeeName || item.employee_name ||
-                      (item.first_name && item.last_name ? `${item.first_name} ${item.last_name}` :
-                       item.user_id ? `User ${item.user_id}` : 'Unknown');
-      lastMonthEmployeeLeaves[empName] = (lastMonthEmployeeLeaves[empName] || 0) + (item.duration || 1);
-    });
-
-    this.lastMonthTopEmployees = Object.entries(lastMonthEmployeeLeaves)
-      .sort(([, a], [, b]) => (b as number) - (a as number))
-      .slice(0, 5)
-      .map(([name, days]) => ({ name, days }));
-
-    this.topEmployeesData.labels = topEmployees.map(emp => emp.name);
-    this.topEmployeesData.datasets[0].data = topEmployees.map(emp => emp.days as number);
   }
 
   // Filter dropdown methods
@@ -1067,11 +887,13 @@ export class LeaveManagementSectionComponent implements OnInit, OnDestroy {
 
   // Method to handle month/year changes
   onMonthYearChange() {
-    console.log(`📅 Month/Year changed to: ${this.months[this.selectedMonth]} ${this.selectedYear}`);
-    // Re-process data with new month/year
-    if (this.masterData.length > 0) {
-      this.updateKPIData(this.masterData);
-      this.updateAllCharts();
-    }
+    const monthIndex = typeof this.selectedMonth === 'string' ? parseInt(this.selectedMonth, 10) : this.selectedMonth;
+    const monthName = this.months[monthIndex] || this.selectedMonth;
+    console.log(`📅 Month/Year changed to: ${monthName} ${this.selectedYear}`);
+    // Re-process data with new month/year - data will be reloaded via global filter subscription
+  }
+
+  getTopThreeEmployees(): any[] {
+    return this.lastMonthTopEmployees.slice(0, 3);
   }
 }

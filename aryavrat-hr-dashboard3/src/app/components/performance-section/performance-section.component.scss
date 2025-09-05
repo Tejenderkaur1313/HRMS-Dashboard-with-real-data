@@ -1,0 +1,38 @@
+.dashboard-container {
+    height: 100vh;
+    padding: 1rem;
+    background: #f8fafc;
+    overflow: hidden;
+  }
+  .kpi-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  .kpi-card {
+    flex: 1;
+    background: white;
+    border-radius: 8px;
+    padding: 1rem;
+    border-left: 4px solid #ccc;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+  
+  .kpi-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #333;
+  }
+  
+  .kpi-label {
+    font-size: 0.875rem;
+    color: #666;
+    margin-bottom: 0.25rem;
+  }
+  
+  .kpi-trend {
+    font-size: 0.75rem;
+    color: #999;
+  }
+  

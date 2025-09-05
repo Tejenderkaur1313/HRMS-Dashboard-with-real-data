@@ -8,8 +8,6 @@ import { LeaveManagementSectionComponent } from './components/leave-management-s
 import { AttendanceSectionComponent } from './components/attendance-section/attendance-section.component';
 import { PayrollSectionComponent } from './components/payroll-section/payroll-section.component';
 import { RecruitmentSectionComponent } from './components/recruitment-section/recruitment-section.component';
-import { PerformanceSectionComponent } from './components/performance-section/performance-section.component';
-import { DiversityBenefitsSectionComponent } from './components/diversity-benefits-section/diversity-benefits-section.component';
 import { ReportsAnalyticsSectionComponent } from './components/reports-analytics-section/reports-analytics-section.component';
 
 @Component({
@@ -25,8 +23,6 @@ import { ReportsAnalyticsSectionComponent } from './components/reports-analytics
     AttendanceSectionComponent,
     PayrollSectionComponent,
     RecruitmentSectionComponent,
-    PerformanceSectionComponent,
-    DiversityBenefitsSectionComponent,
     ReportsAnalyticsSectionComponent
   ],
   templateUrl: './app.component.html',

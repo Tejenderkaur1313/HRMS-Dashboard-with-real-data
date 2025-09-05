@@ -1,278 +1,335 @@
 import { Component, OnInit, Inject, PLATFORM_ID } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { BaseChartDirective } from 'ng2-charts';
-import { ChartConfiguration } from 'chart.js';
-import { DataService } from '../services/data.service';
-import { FilterService } from '../services/filter.service';
-import { combineLatest, map } from 'rxjs';
+import { ChartConfiguration, ChartOptions } from 'chart.js';
+
+// --- MOCK DATA TYPES ---
+interface PayrollEntry {
+  employeeId: number;
+  name: string;
+  department: string;
+  jobTitle: string;
+  baseSalary: number;
+  bonus: number;
+  overtimePay: number;
+  deductions: number;
+  netPay: number;
+  totalCost: number;
+  payDate: string;
+}
 
 @Component({
   selector: 'app-payroll-section',
   standalone: true,
-  imports: [CommonModule, BaseChartDirective],
-  template: `
-    <div class="dashboard-container">
-      <div class="kpi-row">
-        <div class="kpi-card total">
-          <div class="kpi-value">₹{{ payrollStats.totalPayroll | number:'1.0-0' }}</div>
-          <div class="kpi-label">Total Monthly Payroll</div>
-          <div class="kpi-trend">{{ payrollStats.payrollGrowth }}% vs last month</div>
-        </div>
-        <div class="kpi-card avg">
-          <div class="kpi-value">₹{{ payrollStats.avgSalary | number:'1.0-0' }}</div>
-          <div class="kpi-label">Average Salary</div>
-          <div class="kpi-trend">{{ payrollStats.salaryTrend }}% market rate</div>
-        </div>
-        <div class="kpi-card bonus">
-          <div class="kpi-value">₹{{ payrollStats.totalBonus | number:'1.0-0' }}</div>
-          <div class="kpi-label">Performance Bonus</div>
-          <div class="kpi-trend">{{ payrollStats.bonusPercentage }}% of payroll</div>
-        </div>
-        <div class="kpi-card benefits">
-          <div class="kpi-value">₹{{ payrollStats.totalBenefits | number:'1.0-0' }}</div>
-          <div class="kpi-label">Employee Benefits</div>
-          <div class="kpi-trend">{{ payrollStats.benefitsPercentage }}% of salary</div>
-        </div>
-      </div>
-      
-      <div class="dashboard-grid">
-        <div class="chart-widget salary-chart">
-          <div class="widget-header">
-            <h3>Salary Distribution</h3>
-            <span class="widget-actions">💰</span>
-          </div>
-          <canvas *ngIf="isBrowser" baseChart [data]="salaryChartData" [options]="chartOptions" type="doughnut"></canvas>
-          <div *ngIf="!isBrowser" class="chart-placeholder">Salary Chart</div>
-        </div>
-        
-        <div class="chart-widget dept-salary-chart">
-          <div class="widget-header">
-            <h3>Department-wise Payroll</h3>
-            <span class="widget-actions">🏢</span>
-          </div>
-          <canvas *ngIf="isBrowser" baseChart [data]="deptSalaryData" [options]="barOptions" type="bar"></canvas>
-          <div *ngIf="!isBrowser" class="chart-placeholder">Department Chart</div>
-        </div>
-        
-        <div class="chart-widget cost-chart">
-          <div class="widget-header">
-            <h3>Cost Breakdown</h3>
-            <span class="widget-actions">📊</span>
-          </div>
-          <canvas *ngIf="isBrowser" baseChart [data]="costBreakdownData" [options]="chartOptions" type="pie"></canvas>
-          <div *ngIf="!isBrowser" class="chart-placeholder">Cost Chart</div>
-        </div>
-        
-        <div class="table-widget salary-table">
-          <div class="widget-header">
-            <h3>Salary Summary</h3>
-            <span class="widget-actions">📋</span>
-          </div>
-          <div class="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Department</th>
-                  <th>Employees</th>
-                  <th>Avg Salary</th>
-                  <th>Total Cost</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr *ngFor="let dept of departmentSalaries">
-                  <td>{{ dept.name }}</td>
-                  <td>{{ dept.count }}</td>
-                  <td>₹{{ dept.avgSalary | number:'1.0-0' }}</td>
-                  <td>₹{{ dept.totalCost | number:'1.0-0' }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-        
-        <div class="insight-widget">
-          <div class="widget-header">
-            <h3>Payroll Insights</h3>
-            <span class="widget-actions">💡</span>
-          </div>
-          <div class="insights-content">
-            <div class="insight-item" *ngFor="let insight of payrollInsights">
-              <span class="insight-icon">{{ insight.icon }}</span>
-              <div class="insight-text">
-                <strong>{{ insight.title }}:</strong> {{ insight.message }}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  `,
-  styles: [`
-    .dashboard-container { height: 100vh; padding: 1rem; background: #f8fafc; overflow: hidden; }
-    .kpi-card.total { border-left-color: var(--success); }
-    .kpi-card.avg { border-left-color: var(--primary-accent); }
-    .kpi-card.bonus { border-left-color: var(--warning); }
-    .kpi-card.benefits { border-left-color: var(--purple); }
-    .dashboard-grid { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(2, 1fr); gap: 1rem; height: calc(100vh - 180px); }
-    .chart-widget, .table-widget, .insight-widget { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); border: 1px solid var(--border); overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
-    .chart-widget canvas { flex: 1; min-height: 0; width: 100% !important; height: auto !important; padding: 10px; }
-    .salary-chart { grid-column: 1; grid-row: 1; }
-    .dept-salary-chart { grid-column: 2; grid-row: 1; }
-    .cost-chart { grid-column: 3; grid-row: 1; }
-    .salary-table { grid-column: 1 / 3; grid-row: 2; }
-    .insight-widget { grid-column: 3 / 5; grid-row: 2; }
-    .widget-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; flex-shrink: 0; }
-    .widget-header h3 { margin: 0; font-size: 0.9rem; font-weight: 600; color: var(--text-primary); }
-    .chart-placeholder { flex: 1; padding: 2rem; display: flex; align-items: center; justify-content: center; background: var(--background); color: var(--muted); font-style: italic; }
-    .table-container { flex: 1; overflow-y: auto; padding: 0 1rem 1rem; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-    th, td { padding: 0.75rem 0.5rem; text-align: left; border-bottom: 1px solid #eee; }
-    th { background: var(--background); font-weight: 600; color: var(--text-secondary); }
-    .insights-content { padding: 1rem; flex: 1; }
-    .insight-item { display: flex; align-items: flex-start; margin-bottom: 1rem; padding: 0.75rem; background: var(--background); border-radius: 8px; }
-    .insight-icon { margin-right: 0.75rem; font-size: 1.2rem; }
-    .insight-text { font-size: 0.85rem; line-height: 1.4; }
-  `]
+  imports: [CommonModule, FormsModule, BaseChartDirective],
+  templateUrl: './payroll-section.component.html',
+  styleUrls: ['./payroll-section.component.scss']
 })
 export class PayrollSectionComponent implements OnInit {
-  payrollStats = { totalPayroll: 0, avgSalary: 0, totalBonus: 0, totalBenefits: 0, payrollGrowth: 0, salaryTrend: 0, bonusPercentage: 0, benefitsPercentage: 0 };
-  departmentSalaries: any[] = [];
-  payrollInsights: any[] = [];
   isBrowser: boolean;
   
-  salaryChartData: ChartConfiguration['data'] = { labels: ['Junior (₹20-40K)', 'Mid (₹40-80K)', 'Senior (₹80K+)'], datasets: [{ data: [0, 0, 0], backgroundColor: ['#2563EB', '#0D9488', '#7C3AED'] }] };
-  deptSalaryData: ChartConfiguration['data'] = { labels: [], datasets: [{ label: 'Total Payroll', data: [], backgroundColor: '#2563EB' }] };
-  costBreakdownData: ChartConfiguration['data'] = { labels: ['Base Salary', 'Bonus', 'Benefits', 'Taxes'], datasets: [{ data: [0, 0, 0, 0], backgroundColor: ['#16A34A', '#F59E0B', '#7C3AED', '#DC2626'] }] };
+  // --- STATE MANAGEMENT ---
+  private initialPayrollData: PayrollEntry[] = [];
+  filteredData: PayrollEntry[] = [];
   
-  chartOptions: ChartConfiguration['options'] = { 
-    responsive: true, 
-    maintainAspectRatio: false, 
-    plugins: { 
-      legend: { 
-        position: 'bottom',
-        labels: {
-          font: { size: 9 },
-          padding: 8,
-          usePointStyle: true,
-          boxWidth: 10
+  filters = {
+    period: '90',
+  };
+
+  kpiData = {
+    totalCost: '₹0',
+    totalEmployees: '0',
+    avgNetPay: '₹0',
+    variablePay: '₹0',
+  };
+
+  topEarners: any[] = [];
+  
+  // --- CONSTANTS ---
+  TIME_PERIODS = {
+    'all': 'All Time',
+    '90': 'Last 90 Days',
+    '30': 'Last 30 Days',
+    '7': 'Last 7 Days',
+    '1': 'Last Week',
+  };
+
+  // --- CHART CONFIGURATIONS ---
+
+  // 1. Payroll Trend (Line Chart)
+  public payrollTrendData: ChartConfiguration['data'] = {
+    labels: [],
+    datasets: [{
+      label: 'Total Cost',
+      data: [],
+      borderColor: '#3b82f6',
+      backgroundColor: 'rgba(59, 130, 246, 0.1)',
+      fill: true,
+      tension: 0.3,
+      pointBackgroundColor: '#3b82f6',
+    }]
+  };
+  public payrollTrendOptions: ChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: (context) => `Total Cost: ${this.formatCurrency(context.raw as number)}`
         }
       }
     },
-    layout: {
-      padding: { top: 10, bottom: 10, left: 10, right: 10 }
+    scales: {
+      y: { ticks: { callback: (value) => `₹${Number(value) / 1000}k` } },
+      x: { grid: { display: false } }
     }
   };
-  barOptions: ChartConfiguration['options'] = { 
-    responsive: true, 
-    maintainAspectRatio: false, 
-    plugins: { legend: { display: false } }, 
-    scales: { 
-      y: { 
-        beginAtZero: true,
-        ticks: {
-          font: { size: 8 },
-          maxTicksLimit: 4
+
+  // 2. Payroll Composition (Doughnut Chart)
+  public payrollCompositionData: ChartConfiguration<'doughnut'>['data'] = {
+    labels: ['Base Salary', 'Bonuses', 'Overtime'],
+    datasets: [{
+      data: [],
+      backgroundColor: ['#3b82f6', '#84cc16', '#f97316'],
+      hoverBackgroundColor: ['#2563eb', '#65a30d', '#ea580c'],
+      borderWidth: 0,
+    }]
+  };
+  public payrollCompositionOptions: ChartOptions<'doughnut'> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: 70,
+    plugins: {
+      legend: { display: false },
+       tooltip: {
+        callbacks: {
+          label: (context) => `${context.label}: ${this.formatCurrency(context.raw as number)}`
         }
+      }
+    }
+  };
+   // For manual legend
+  compositionLegend: { name: string, value: string, color: string }[] = [];
+
+
+  // 3. Payroll Cost by Department (Horizontal Bar Chart)
+  public payrollCostByDeptData: ChartConfiguration['data'] = {
+    labels: [],
+    datasets: [{
+      label: 'Total Cost',
+      data: [],
+      backgroundColor: '#3b82f6',
+      borderRadius: 4,
+      barPercentage: 0.7
+    }]
+  };
+  public payrollCostByDeptOptions: ChartOptions = {
+    indexAxis: 'y', // <-- Makes the bar chart horizontal
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+       tooltip: {
+        callbacks: {
+          label: (context) => `Total Cost: ${this.formatCurrency(context.raw as number)}`
+        }
+      }
+    },
+    scales: {
+      x: { 
+        grid: { display: false },
+        ticks: { callback: (value) => `₹${Number(value) / 1000}k` } 
       },
-      x: {
-        ticks: {
-          font: { size: 8 },
-          maxRotation: 0
-        }
-      }
-    },
-    layout: {
-      padding: { top: 10, bottom: 10, left: 10, right: 10 }
+      y: { grid: { display: false } }
     }
   };
 
-  constructor(private dataService: DataService, private filterService: FilterService, @Inject(PLATFORM_ID) platformId: Object) {
-    this.isBrowser = isPlatformBrowser(platformId);
+  constructor(@Inject(PLATFORM_ID) private platformId: Object) {
+    this.isBrowser = isPlatformBrowser(this.platformId);
   }
 
-  ngOnInit() {
-    // No data available - waiting for API response
-    this.filterService.globalFilters.subscribe(filters => {
-      // Data will be loaded when API is available
-      this.calculatePayrollStats([]);
-      if (this.isBrowser) this.updateCharts([]);
-      this.generateInsights([]);
-    });
+  ngOnInit(): void {
+    this.initialPayrollData = this.generateMockData();
+    this.processData();
   }
 
-  private applyFilters(data: any[], filters: any): any[] { 
-    return data.filter((item: any) => {
-      if (filters.department && item.dept !== filters.department) return false;
-      if (filters.team && item.team !== filters.team) return false;
-      if (filters.search && !`${item.first_name} ${item.last_name}`.toLowerCase().includes(filters.search.toLowerCase())) return false;
-      return true;
-    });
+  onFilterChange(): void {
+    this.processData();
+  }
+  
+  private processData(): void {
+    this.updateFilteredData();
+    this.updateKpiData();
+    this.updateTopEarnersTable();
+
+    if (this.isBrowser) {
+      this.updatePayrollTrendChart();
+      this.updatePayrollCompositionChart();
+      this.updatePayrollCostByDeptChart();
+    }
   }
 
-  private calculatePayrollStats(users: any[]) {
-    const deptStats = users.reduce((acc, user) => {
-      const dept = this.extractDepartment(user.last_name);
-      const salary = this.estimateSalary(user.last_name);
-      if (!acc[dept]) acc[dept] = { count: 0, totalSalary: 0 };
-      acc[dept].count++;
-      acc[dept].totalSalary += salary;
-      return acc;
-    }, {});
+  private updateFilteredData(): void {
+    let dataToFilter = [...this.initialPayrollData];
+    const today = new Date();
+    const period = this.filters.period;
 
-    this.departmentSalaries = Object.entries(deptStats).map(([name, stats]: any) => ({
-      name, count: stats.count, avgSalary: stats.totalSalary / stats.count, totalCost: stats.totalSalary
-    }));
+    if (period !== 'all') {
+      const periodInDays = parseInt(period, 10);
+      const startDate = new Date();
+      startDate.setDate(today.getDate() - periodInDays);
+      dataToFilter = dataToFilter.filter(item => new Date(item.payDate) >= startDate);
+    }
 
-    this.payrollStats.totalPayroll = this.departmentSalaries.reduce((sum, dept) => sum + dept.totalCost, 0);
-    this.payrollStats.avgSalary = this.payrollStats.totalPayroll / users.length;
-    this.payrollStats.totalBonus = this.payrollStats.totalPayroll * 0.12;
-    this.payrollStats.totalBenefits = this.payrollStats.totalPayroll * 0.18;
-    this.payrollStats.bonusPercentage = 12;
-    this.payrollStats.benefitsPercentage = 18;
+    this.filteredData = dataToFilter;
+  }
+  
+  private updateKpiData(): void {
+    if (this.filteredData.length === 0) {
+      this.kpiData = { totalCost: '₹0', totalEmployees: '0', avgNetPay: '₹0', variablePay: '₹0' };
+      return;
+    }
+    const totalCost = this.filteredData.reduce((sum, item) => sum + item.totalCost, 0);
+    const uniqueEmployees = new Set(this.filteredData.map(item => item.employeeId));
+    const totalEmployees = uniqueEmployees.size;
+    const avgNetPay = totalCost > 0 ? this.filteredData.reduce((sum, item) => sum + item.netPay, 0) / this.filteredData.length : 0;
+    const variablePay = this.filteredData.reduce((sum, item) => sum + item.bonus + item.overtimePay, 0);
+
+    this.kpiData = {
+      totalCost: this.formatCurrency(totalCost),
+      totalEmployees: totalEmployees.toLocaleString(),
+      avgNetPay: this.formatCurrency(avgNetPay),
+      variablePay: this.formatCurrency(variablePay),
+    };
   }
 
-  private updateCharts(users: any[]) {
-    const salaryRanges = [0, 0, 0];
-    users.forEach(user => {
-      const salary = this.estimateSalary(user.last_name);
-      if (salary < 40000) salaryRanges[0]++;
-      else if (salary < 80000) salaryRanges[1]++;
-      else salaryRanges[2]++;
-    });
-    this.salaryChartData.datasets[0].data = salaryRanges;
+  private updateTopEarnersTable(): void {
+     if (!this.filteredData || this.filteredData.length === 0) {
+        this.topEarners = [];
+        return;
+      }
+      
+      const employeePay = this.filteredData.reduce((acc, curr) => {
+          if (!acc[curr.employeeId]) {
+              acc[curr.employeeId] = {
+                  name: curr.name,
+                  department: curr.department,
+                  totalCost: 0,
+              };
+          }
+          acc[curr.employeeId].totalCost += curr.totalCost;
+          return acc;
+      }, {} as any);
+
+      this.topEarners = Object.values(employeePay)
+          .sort((a: any, b: any) => b.totalCost - a.totalCost)
+          .slice(0, 5);
+  }
+
+  private updatePayrollTrendChart(): void {
+    if (!this.filteredData || this.filteredData.length === 0) {
+       this.payrollTrendData.labels = [];
+       this.payrollTrendData.datasets[0].data = [];
+       return;
+    }
+    const costByDate = this.filteredData.reduce((acc, curr) => {
+        const date = curr.payDate;
+        if(!acc[date]) acc[date] = 0;
+        acc[date] += curr.totalCost;
+        return acc;
+    }, {} as any);
+
+    const sortedData = Object.keys(costByDate)
+      .map(date => ({ date, 'Total Cost': costByDate[date] }))
+      .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      
+    this.payrollTrendData.labels = sortedData.map(d => new Date(d.date).toLocaleDateString('en-US', {month:'short', day:'numeric'}));
+    this.payrollTrendData.datasets[0].data = sortedData.map(d => d['Total Cost']);
+  }
+
+  private updatePayrollCompositionChart(): void {
+      if (!this.filteredData || this.filteredData.length === 0) {
+        this.payrollCompositionData.datasets[0].data = [];
+        this.compositionLegend = [];
+        return;
+      }
+      const totals = this.filteredData.reduce((acc, curr) => {
+          acc.baseSalary += curr.baseSalary;
+          acc.bonus += curr.bonus;
+          acc.overtimePay += curr.overtimePay;
+          return acc;
+      }, { baseSalary: 0, bonus: 0, overtimePay: 0 });
+
+      const data = [totals.baseSalary, totals.bonus, totals.overtimePay];
+      this.payrollCompositionData.datasets[0].data = data;
+
+      // Update manual legend
+      this.compositionLegend = [
+        { name: 'Base Salary', value: this.formatCurrency(totals.baseSalary), color: '#3b82f6'},
+        { name: 'Bonuses', value: this.formatCurrency(totals.bonus), color: '#84cc16'},
+        { name: 'Overtime', value: this.formatCurrency(totals.overtimePay), color: '#f97316'},
+      ].filter(item => parseFloat(item.value.replace(/[^0-9.-]+/g,"")) > 0);
+  }
+
+  private updatePayrollCostByDeptChart(): void {
+    if (!this.filteredData || this.filteredData.length === 0) {
+      this.payrollCostByDeptData.labels = [];
+      this.payrollCostByDeptData.datasets[0].data = [];
+      return;
+    }
+     const costByDept = this.filteredData.reduce((acc, curr) => {
+        if (!acc[curr.department]) acc[curr.department] = 0;
+        acc[curr.department] += curr.totalCost;
+        return acc;
+    }, {} as any);
     
-    this.deptSalaryData.labels = this.departmentSalaries.map(d => d.name);
-    this.deptSalaryData.datasets[0].data = this.departmentSalaries.map(d => d.totalCost);
-    
-    // Update cost breakdown with actual percentages
-    const baseSalaryPercent = 70;
-    const bonusPercent = this.payrollStats.bonusPercentage;
-    const benefitsPercent = this.payrollStats.benefitsPercentage;
-    const taxesPercent = 100 - baseSalaryPercent - bonusPercent - benefitsPercent;
-    this.costBreakdownData.datasets[0].data = [baseSalaryPercent, bonusPercent, benefitsPercent, taxesPercent];
+    const sortedData = Object.entries(costByDept)
+      .sort(([, a], [, b]) => (b as number) - (a as number));
+      
+    this.payrollCostByDeptData.labels = sortedData.map(([name]) => name);
+    this.payrollCostByDeptData.datasets[0].data = sortedData.map(([, cost]) => cost as number);
   }
 
-  private extractDepartment(lastName: string): string {
-    if (lastName.includes('Development')) return 'Development';
-    if (lastName.includes('QA')) return 'QA';
-    if (lastName.includes('BDM') || lastName.includes('BPO')) return 'Business';
-    if (lastName.includes('Support')) return 'Support';
-    return 'General';
-  }
+  // --- HELPER & DATA GENERATION ---
+  private formatCurrency = (value: number | string) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(value));
 
-  private estimateSalary(lastName: string): number {
-    if (lastName.includes('Development')) return Math.random() * 40000 + 50000;
-    if (lastName.includes('QA')) return Math.random() * 30000 + 35000;
-    if (lastName.includes('BDM')) return Math.random() * 35000 + 45000;
-    if (lastName.includes('Support')) return Math.random() * 25000 + 30000;
-    return Math.random() * 30000 + 40000;
-  }
+  private generateMockData = (): PayrollEntry[] => {
+    const departments = ['Engineering', 'Sales', 'Marketing', 'HR', 'Finance'];
+    const jobTitles = ['Junior Developer', 'Senior Developer', 'Sales Rep', 'Marketing Specialist', 'Accountant'];
+    const data: PayrollEntry[] = [];
+    const today = new Date();
+    let employeeId = 101;
 
-  private generateInsights(users: any[]) {
-    this.payrollInsights = [
-      { icon: '💰', title: 'Cost Efficiency', message: `Total payroll: ₹${this.payrollStats.totalPayroll.toLocaleString()} for ${users.length} employees.` },
-      { icon: '📈', title: 'Average Salary', message: `Average salary: ₹${this.payrollStats.avgSalary.toLocaleString()} per employee.` },
-      { icon: '🎯', title: 'Benefits Cost', message: `Benefits represent ${this.payrollStats.benefitsPercentage}% of total payroll cost.` }
-    ];
-  }
+    for (let i = 0; i < 180; i++) {
+        const payDate = new Date(today);
+        payDate.setDate(today.getDate() - (i % 26) * 7);
+
+        const numEmployees = Math.floor(Math.random() * 15) + 35;
+        for (let j = 0; j < numEmployees; j++) {
+            const department = departments[Math.floor(Math.random() * departments.length)];
+            const baseSalary = Math.floor(Math.random() * 2000) + 1000;
+            const bonus = Math.random() > 0.8 ? Math.floor(Math.random() * 500) : 0;
+            const overtimePay = Math.random() > 0.6 ? Math.floor(Math.random() * 300) : 0;
+            const deductions = Math.floor(baseSalary * 0.15);
+            
+            data.push({
+                employeeId: employeeId + j,
+                name: `Employee ${employeeId + j}`,
+                department,
+                jobTitle: jobTitles[Math.floor(Math.random() * jobTitles.length)],
+                baseSalary,
+                bonus,
+                overtimePay,
+                deductions,
+                netPay: baseSalary + bonus + overtimePay - deductions,
+                totalCost: baseSalary + bonus + overtimePay,
+                payDate: payDate.toISOString().split('T')[0],
+            });
+        }
+        employeeId += numEmployees;
+    }
+    return data;
+  };
 }

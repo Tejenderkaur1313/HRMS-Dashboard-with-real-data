@@ -1,0 +1,126 @@
+<!-- recruitment-section.component.html -->
+
+<div class="bg-gray-50 min-h-screen p-4 sm:p-6 lg:p-8 font-sans">
+  <div class="max-w-7xl mx-auto">
+    <ng-container *ngIf="dashboardData$ | async as data; else loading">
+      <!-- Dashboard Header -->
+      <header class="mb-8 flex justify-between items-center">
+        <div>
+          <h1 class="text-3xl font-bold text-gray-800">{{ translations.dashboardTitle }}</h1>
+          <p class="text-gray-500 mt-1">{{ translations.dashboardSubtitle }}</p>
+        </div>
+      </header>
+
+      <!-- KPI Cards in a Single Line -->
+      <div class="kpi-row">
+        <!-- Open Positions -->
+        <div class="kpi-card blue-border">
+          <p class="kpi-label">{{translations.kpi.openPositions}}</p>
+          <p class="kpi-value">{{data.openPositions}}</p>
+        </div>
+
+        <!-- Total Applicants -->
+        <div class="kpi-card green-border">
+          <p class="kpi-label">{{translations.kpi.applicants}}</p>
+          <p class="kpi-value">{{data.totalApplicants}}</p>
+        </div>
+
+        <!-- Time to Fill -->
+        <div class="kpi-card orange-border">
+          <p class="kpi-label">{{translations.kpi.timeToFill}}</p>
+          <p class="kpi-value">{{data.avgTimeToFill}}</p>
+        </div>
+
+        <!-- Acceptance Rate -->
+        <div class="kpi-card teal-border">
+          <p class="kpi-label">{{translations.kpi.acceptanceRate}}</p>
+          <p class="kpi-value">{{data.acceptanceRate}}</p>
+        </div>
+
+        <!-- New Hires -->
+        <div class="kpi-card gray-border">
+          <p class="kpi-label">{{translations.kpi.newHires}}</p>
+          <p class="kpi-value">{{data.newHires}}</p>
+        </div>
+      </div>
+      
+      <!-- Charts Grid - 2x2 Layout -->
+      <div class="charts-grid">
+        <!-- Row 1 -->
+        <!-- Hires by Dept -->
+        <div class="chart-card">
+          <h3 class="font-semibold text-gray-700 mb-4 px-6 pt-6">{{translations.charts.hiresByDept}}</h3>
+          <div class="chart-wrapper">
+            <ngx-charts-bar-vertical 
+              [results]="data.hiresByDept" 
+              [xAxis]="true" 
+              [yAxis]="true" 
+              [scheme]="barColorScheme"
+              [showXAxisLabel]="true"
+              [showYAxisLabel]="true"
+              [tooltipDisabled]="false"
+              xAxisLabel="Department"
+              yAxisLabel="Hires">
+            </ngx-charts-bar-vertical>
+          </div>
+        </div>
+
+        <!-- Source of Hire -->
+        <div class="chart-card">
+          <h3 class="font-semibold text-gray-700 mb-4 px-6 pt-6">{{translations.charts.sourceOfHire}}</h3>
+          <div class="chart-wrapper">
+            <ngx-charts-pie-chart 
+              [results]="data.sourceOfHire" 
+              [doughnut]="true" 
+              [scheme]="pieColors" 
+              [legend]="true" 
+              [legendPosition]="LegendPosition.Below" 
+              [labels]="true"
+              [tooltipDisabled]="false">
+            </ngx-charts-pie-chart>
+          </div>
+        </div>
+
+        <!-- Row 2 -->
+        <!-- Time to Fill -->
+        <div class="chart-card">
+          <h3 class="font-semibold text-gray-700 mb-4 px-6 pt-6">{{translations.charts.timeToFillTrend}}</h3>
+          <div class="chart-wrapper">
+            <ngx-charts-line-chart 
+              [results]="data.timeToFillTrend" 
+              [xAxis]="true" 
+              [yAxis]="true" 
+              [scheme]="barColorScheme"
+              [showXAxisLabel]="true"
+              [showYAxisLabel]="true"
+              [tooltipDisabled]="false"
+              xAxisLabel="Month"
+              yAxisLabel="Days to Fill">
+            </ngx-charts-line-chart>
+          </div>
+        </div>
+
+        <!-- Recruitment Funnel -->
+        <div class="chart-card">
+          <h3 class="font-semibold text-gray-700 mb-4 px-6 pt-6">{{translations.charts.recruitmentPipeline}}</h3>
+          <div class="chart-wrapper">
+            <ngx-charts-bar-horizontal 
+              [results]="data.recruitmentFunnel.slice().reverse()" 
+              [xAxis]="true" 
+              [yAxis]="true" 
+              [scheme]="funnelColors"
+              [showXAxisLabel]="true"
+              [showYAxisLabel]="true"
+              [tooltipDisabled]="false"
+              xAxisLabel="Candidates"
+              yAxisLabel="Stage">
+            </ngx-charts-bar-horizontal>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+
+    <!-- Loading Template -->
+    <ng-template #loading><p class="text-center text-gray-500 py-10">Loading Recruitment Data...</p></ng-template>
+  </div>
+</div>

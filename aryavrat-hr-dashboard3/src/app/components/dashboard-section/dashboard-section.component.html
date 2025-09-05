@@ -1,0 +1,194 @@
+<div class="dashboard-container">
+  <!-- Header with Title and Date -->
+  <div class="dashboard-header">
+    <h1>Dashboard Overview</h1>
+    <div class="date-selector">
+      <span class="current-date">Today, 15 Mar 2024</span>
+      <button class="date-picker-btn">
+        <i class="calendar-icon">📅</i>
+      </button>
+    </div>
+  </div>
+
+  <!-- KPI Cards Row -->
+  <div class="kpi-row">
+    <!-- Attendance KPI -->
+    <div class="kpi-card attendance">
+      <div class="kpi-icon">
+        <i class="pi pi-users"></i>
+      </div>
+      <div class="kpi-details">
+        <div class="kpi-value">{{ kpiData.avgAttendance }}%</div>
+        <div class="kpi-label">Attendance</div>
+        <div class="kpi-trend positive">
+          <i class="pi pi-arrow-up"></i> 2.5% from last week
+        </div>
+      </div>
+    </div>
+
+    <!-- Employees KPI -->
+    <div class="kpi-card employees">
+      <div class="kpi-icon">
+        <i class="pi pi-user-plus"></i>
+      </div>
+      <div class="kpi-details">
+        <div class="kpi-value">{{ kpiData.employees | number:'1.0-0' }}</div>
+        <div class="kpi-label">Employees</div>
+        <div class="kpi-trend positive">
+          <i class="pi pi-arrow-up"></i> 5.2% growth
+        </div>
+      </div>
+    </div>
+
+    <!-- Leaves KPI -->
+    <div class="kpi-card leaves">
+      <div class="kpi-icon">
+        <i class="pi pi-calendar-minus"></i>
+      </div>
+      <div class="kpi-details">
+        <div class="kpi-value">{{ kpiData.leaves }}</div>
+        <div class="kpi-label">Leaves</div>
+        <div class="kpi-trend negative">
+          <i class="pi pi-arrow-down"></i> 1.8% from last month
+        </div>
+      </div>
+    </div>
+
+    <!-- Performance KPI -->
+    <div class="kpi-card performance">
+      <div class="kpi-icon">
+        <i class="pi pi-chart-line"></i>
+      </div>
+      <div class="kpi-details">
+        <div class="kpi-value">{{ kpiData.performance }}<span class="rating-out-of">/5.0</span></div>
+        <div class="kpi-label">Performance</div>
+        <div class="kpi-trend positive">
+          <i class="pi pi-arrow-up"></i> 0.3 from last quarter
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Main Content Grid -->
+  <div class="main-content">
+    <!-- Left Column -->
+    <div class="left-column">
+      <!-- Attendance Overview -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3>Attendance Overview</h3>
+          <div class="chart-actions">
+            <select class="time-filter">
+              <option>Today</option>
+              <option>This Week</option>
+              <option>This Month</option>
+            </select>
+          </div>
+        </div>
+        <div class="attendance-container">
+          <div class="donut-chart-container">
+            <div *ngIf="isBrowser" class="donut-chart">
+              <canvas baseChart 
+                [data]="donutChartData" 
+                [options]="donutChartOptions" 
+                type="doughnut">
+              </canvas>
+              <div class="donut-center-text">
+                <div class="percentage">{{attendanceData.presentPercentage}}%</div>
+                <div class="label">Present</div>
+                <div class="count">{{attendanceData.present}}/{{attendanceData.total}}</div>
+              </div>
+            </div>
+            <div *ngIf="!isBrowser" class="chart-placeholder">Attendance Chart</div>
+          </div>
+          
+          <div class="attendance-metrics">
+            <div class="metric-item">
+              <span class="dot present"></span>
+              <div class="metric-details">
+                <div class="metric-value">{{attendanceData.present}}</div>
+                <div class="metric-label">On Time</div>
+              </div>
+            </div>
+            <div class="metric-item">
+              <span class="dot late"></span>
+              <div class="metric-details">
+                <div class="metric-value">{{attendanceData.late}}</div>
+                <div class="metric-label">Late</div>
+              </div>
+            </div>
+            <div class="metric-item">
+              <span class="dot absent"></span>
+              <div class="metric-details">
+                <div class="metric-value">{{attendanceData.absent}}</div>
+                <div class="metric-label">Absent</div>
+              </div>
+            </div>
+            <div class="metric-item">
+              <span class="dot half-day"></span>
+              <div class="metric-details">
+                <div class="metric-value">{{attendanceData.halfDay}}</div>
+                <div class="metric-label">Half Day</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Department Performance -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <h3>Department Performance</h3>
+        </div>
+        <div class="chart-container">
+          <canvas *ngIf="isBrowser" baseChart [data]="departmentChartData" [options]="barChartOptions" type="bar"></canvas>
+          <div *ngIf="!isBrowser" class="chart-placeholder">Department Chart</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column -->
+    <div class="right-column">
+      <!-- Upcoming Holidays -->
+      <div class="holidays-card">
+        <div class="holidays-header">
+          <h3>Upcoming Holidays</h3>
+        </div>
+        <div class="holidays-list">
+          <div class="holiday-item" *ngFor="let holiday of upcomingHolidays | slice:0:3">
+            <div class="holiday-date">
+              <span class="holiday-day">{{holiday.day}}</span>
+              <span class="holiday-month">{{holiday.month}}</span>
+            </div>
+            <div class="holiday-details">
+              <h4>{{holiday.name}}</h4>
+              <p>{{holiday.type}}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Leave Requests -->
+      <div class="leaves-card">
+        <div class="leaves-header">
+          <h3>Recent Leave Requests</h3>
+        </div>
+        <div class="leaves-list">
+          <div class="leave-item" *ngFor="let leave of recentLeaveRequests | slice:0:3" [ngClass]="'status-' + leave.status">
+            <div class="leave-avatar">
+              {{leave.avatar}}
+            </div>
+            <div class="leave-details">
+              <h4>{{leave.employee}}</h4>
+              <p>{{leave.type}}</p>
+              <span class="leave-dates">{{leave.startDate}} - {{leave.endDate}}</span>
+            </div>
+            <div class="leave-status">
+              <span class="status-badge">{{leave.status | titlecase}}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

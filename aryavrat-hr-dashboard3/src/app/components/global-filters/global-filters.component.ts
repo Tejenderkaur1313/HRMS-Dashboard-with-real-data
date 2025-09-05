@@ -1,73 +1,56 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FilterService } from '../services/filter.service';
+import { FormsModule } from '@angular/forms';
+import { GlobalFilterService } from '../services/global-filter.service';
+import { DepartmentService, Department } from '../services/department.service';
+import { TeamService, Team } from '../services/team.service';
 
 @Component({
   selector: 'app-global-filters',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   template: `
     <div class="filters-container">
       <div class="filter-group">
         <label>Department</label>
-        <select (change)="updateFilter('department', $event)">
+        <select (change)="updateDepartment($event)">
           <option value="">All Departments</option>
-          <option value="#development">Development</option>
-          <option value="#marketing">Marketing</option>
-          <option value="#Support">Support</option>
-          <option value="#Backend">Backend</option>
-          <option value="#design">Design</option>
-          <option value="#BPO">BPO</option>
-          <option value="#QA">QA</option>
-          <option value="#sales">Sales</option>
-          <option value="#Android">Android</option>
+          <option *ngFor="let department of departments" [value]="department.id">{{department.name}}</option>
         </select>
       </div>
       
       <div class="filter-group">
         <label>Team</label>
-        <select (change)="updateFilter('team', $event)">
+        <select (change)="updateTeam($event)">
           <option value="">All Teams</option>
-          <option value="$management">Management</option>
-          <option value="$development">Development</option>
-          <option value="$Digital Marketing">Digital Marketing</option>
-          <option value="$Sales">Sales</option>
-          <option value="$team">Team</option>
+          <option *ngFor="let team of teams" [value]="team.id">{{team.name}}</option>
         </select>
       </div>
       
       <div class="filter-group">
         <label>Month</label>
-        <select (change)="updateFilter('month', $event)" #monthSelect>
-          <option value="">All Months</option>
-          <option value="1">January</option>
-          <option value="2">February</option>
-          <option value="3">March</option>
-          <option value="4">April</option>
-          <option value="5">May</option>
-          <option value="6">June</option>
-          <option value="7">July</option>
-          <option value="8" selected>August</option>
-          <option value="9">September</option>
+        <select [(ngModel)]="selectedMonth" (change)="updateMonth()">
+          <option value="">Select Month</option>
+          <option value="01">January</option>
+          <option value="02">February</option>
+          <option value="03">March</option>
+          <option value="04">April</option>
+          <option value="05">May</option>
+          <option value="06">June</option>
+          <option value="07">July</option>
+          <option value="08">August</option>
+          <option value="09">September</option>
           <option value="10">October</option>
           <option value="11">November</option>
           <option value="12">December</option>
         </select>
       </div>
       
-      <div class="filter-group">
-        <label>Year</label>
-        <select (change)="updateFilter('year', $event)">
-          <option value="">All Years</option>
-          <option value="2025">2025</option>
-        </select>
-      </div>
-      
       <div class="filter-group date-range">
         <label>Date Range</label>
         <div class="date-inputs">
-          <input type="date" (change)="updateDateRange('start', $event)" placeholder="Start">
-          <input type="date" (change)="updateDateRange('end', $event)" placeholder="End">
+          <input type="date" [(ngModel)]="fromDate" (change)="updateDateRange()" placeholder="From Date">
+          <input type="date" [(ngModel)]="toDate" (change)="updateDateRange()" placeholder="To Date">
         </div>
       </div>
       
@@ -159,42 +142,87 @@ import { FilterService } from '../services/filter.service';
     }
   `]
 })
-export class GlobalFiltersComponent {
-  constructor(private filterService: FilterService) {
-    // Set default filters on initialization
-    this.filterService.updateGlobalFilters({ month: '8', year: '2025' });
-  }
+export class GlobalFiltersComponent implements OnInit {
+  departments: Department[] = [];
+  teams: Team[] = [];
+  fromDate: string = '2025-08-01';
+  toDate: string = '2025-08-31';
+  selectedMonth: string = '08';
 
-  updateFilter(type: string, event: any) {
-    const value = event.target.value;
-    this.filterService.updateGlobalFilters({ [type]: value || null });
-  }
+  constructor(
+    private globalFilterService: GlobalFilterService,
+    private departmentService: DepartmentService,
+    private teamService: TeamService
+  ) {}
 
-  updateDateRange(type: 'start' | 'end', event: any) {
-    const value = new Date(event.target.value);
-    const currentFilters = this.filterService.getCurrentFilters();
-    const dateRange = currentFilters.dateRange || {};
-    this.filterService.updateGlobalFilters({
-      dateRange: { ...dateRange, [type]: value }
-    });
-  }
-
-  resetFilters() {
-    this.filterService.resetFilters();
-    // Reset form elements but keep August selected
-    const selects = document.querySelectorAll('select');
-    const inputs = document.querySelectorAll('input');
-    selects.forEach((select, index) => {
-      if (index === 2) { // Month select (3rd select)
-        (select as HTMLSelectElement).value = '8'; // August
-      } else if (index === 3) { // Year select (4th select)
-        (select as HTMLSelectElement).value = '2025';
-      } else {
-        (select as HTMLSelectElement).selectedIndex = 0;
+  ngOnInit(): void {
+    // Initialize with August 2025 date range
+    this.globalFilterService.setDateRange(this.fromDate, this.toDate);
+    
+    // Load departments
+    this.departmentService.getDepartments().subscribe({
+      next: (departments) => {
+        this.departments = departments;
+      },
+      error: (error) => {
+        console.error('Failed to load departments:', error);
       }
     });
-    inputs.forEach(input => (input as HTMLInputElement).value = '');
-    // Set default filters again
-    this.filterService.updateGlobalFilters({ month: '8', year: '2025' });
+
+    // Load teams
+    this.teamService.getTeamData().subscribe({
+      next: (teams) => {
+        this.teams = teams;
+      },
+      error: (error) => {
+        console.error('Failed to load teams:', error);
+      }
+    });
+  }
+
+  updateDepartment(event: any): void {
+    const departmentId = event.target.value ? parseInt(event.target.value) : undefined;
+    this.globalFilterService.updateFilters({ departmentId });
+  }
+
+  updateDateRange(): void {
+    if (this.fromDate && this.toDate) {
+      this.globalFilterService.setDateRange(this.fromDate, this.toDate);
+    }
+  }
+
+  updateTeam(event: any): void {
+    const teamId = event.target.value ? parseInt(event.target.value) : undefined;
+    this.globalFilterService.updateFilters({ teamId });
+  }
+
+  updateFilter(type: string, event: any): void {
+    const value = event.target.value;
+    this.globalFilterService.updateFilters({ [type]: value || undefined });
+  }
+
+  updateMonth(): void {
+    if (this.selectedMonth) {
+      const currentYear = new Date().getFullYear();
+      const month = this.selectedMonth;
+      const fromDate = `${currentYear}-${month}-01`;
+      const lastDay = new Date(currentYear, parseInt(month), 0).getDate();
+      const toDate = `${currentYear}-${month}-${lastDay.toString().padStart(2, '0')}`;
+      
+      this.fromDate = fromDate;
+      this.toDate = toDate;
+      this.globalFilterService.setDateRange(fromDate, toDate);
+    }
+  }
+
+  resetFilters(): void {
+    this.fromDate = '2025-08-01';
+    this.toDate = '2025-08-31';
+    this.selectedMonth = '08';
+    this.globalFilterService.updateFilters({
+      fromDate: this.fromDate,
+      toDate: this.toDate,
+      departmentId: undefined
+    });
   }
 }
