@@ -7,15 +7,35 @@ export interface GlobalFilters {
   companyId: number;
   departmentId?: number;
   teamId?: number;
+  search?: string;
 }
 
 @Injectable({ providedIn: 'root' })
 export class GlobalFilterService {
-  private filtersSubject = new BehaviorSubject<GlobalFilters>({
-    fromDate: '2024-07-01',
-    toDate: '2024-07-31',
-    companyId: 85
-  });
+  private filtersSubject = new BehaviorSubject<GlobalFilters>(this.getDefaultFilters());
+
+  private getDefaultFilters(): GlobalFilters {
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    
+    // Get company_id from localStorage or use default
+    const companyId = localStorage.getItem('company_id') ? 
+      parseInt(localStorage.getItem('company_id')!) : 1;
+    
+    return {
+      fromDate: this.formatDate(firstDay),
+      toDate: this.formatDate(lastDay),
+      companyId: companyId
+    };
+  }
+
+  private formatDate(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
 
   public filters$ = this.filtersSubject.asObservable();
 
@@ -27,8 +47,7 @@ export class GlobalFilterService {
     const currentFilters = this.filtersSubject.value;
     const newFilters = { ...currentFilters, ...filters };
     this.filtersSubject.next(newFilters);
-    console.log('🔄 Global filters updated:', newFilters);
-  }
+      }
 
   setDateRange(fromDate: string, toDate: string): void {
     this.updateFilters({ fromDate, toDate });

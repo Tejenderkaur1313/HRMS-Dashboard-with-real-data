@@ -92,7 +92,7 @@
 .kpi-card {
   background: white;
   border-radius: var(--border-radius);
-  padding: 1.5rem;
+  padding: 7px 6.5px 8px;
   box-shadow: var(--card-shadow);
   display: flex;
   align-items: left;
@@ -546,7 +546,7 @@
   flex: 1;
   background: white;
   border-radius: 8px;
-  padding: 1rem;
+  padding: 7px 6.5px 8px;
   border-left: 4px solid #ccc;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   

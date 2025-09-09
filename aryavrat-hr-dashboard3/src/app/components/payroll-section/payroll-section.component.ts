@@ -1,23 +1,13 @@
 import { Component, OnInit, Inject, PLATFORM_ID } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BaseChartDirective } from 'ng2-charts';
 import { ChartConfiguration, ChartOptions } from 'chart.js';
+import { PayrollService, PayrollData, PayrollEntry } from '../services/payroll.service';
+import { finalize } from 'rxjs/operators';
 
-// --- MOCK DATA TYPES ---
-interface PayrollEntry {
-  employeeId: number;
-  name: string;
-  department: string;
-  jobTitle: string;
-  baseSalary: number;
-  bonus: number;
-  overtimePay: number;
-  deductions: number;
-  netPay: number;
-  totalCost: number;
-  payDate: string;
-}
+// --- PAYROLL TYPES ---
 
 @Component({
   selector: 'app-payroll-section',
@@ -27,14 +17,15 @@ interface PayrollEntry {
   styleUrls: ['./payroll-section.component.scss']
 })
 export class PayrollSectionComponent implements OnInit {
-  isBrowser: boolean;
+  isLoading = false;
+  error: string | null = null;
   
   // --- STATE MANAGEMENT ---
-  private initialPayrollData: PayrollEntry[] = [];
+  payrollData: PayrollData | null = null;
   filteredData: PayrollEntry[] = [];
   
   filters = {
-    period: '90',
+    period: '30', // Default to last 30 days
   };
 
   kpiData = {
@@ -103,14 +94,14 @@ export class PayrollSectionComponent implements OnInit {
     cutout: 70,
     plugins: {
       legend: { display: false },
-       tooltip: {
+      tooltip: {
         callbacks: {
           label: (context) => `${context.label}: ${this.formatCurrency(context.raw as number)}`
         }
       }
     }
   };
-   // For manual legend
+  // For manual legend
   compositionLegend: { name: string, value: string, color: string }[] = [];
 
 
@@ -131,7 +122,7 @@ export class PayrollSectionComponent implements OnInit {
     maintainAspectRatio: false,
     plugins: {
       legend: { display: false },
-       tooltip: {
+      tooltip: {
         callbacks: {
           label: (context) => `Total Cost: ${this.formatCurrency(context.raw as number)}`
         }
@@ -146,13 +137,17 @@ export class PayrollSectionComponent implements OnInit {
     }
   };
 
-  constructor(@Inject(PLATFORM_ID) private platformId: Object) {
+  isBrowser: boolean;
+
+  constructor(
+    private payrollService: PayrollService,
+    @Inject(PLATFORM_ID) private platformId: Object
+  ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
   }
 
   ngOnInit(): void {
-    this.initialPayrollData = this.generateMockData();
-    this.processData();
+    this.loadPayrollData();
   }
 
   onFilterChange(): void {
@@ -160,72 +155,100 @@ export class PayrollSectionComponent implements OnInit {
   }
   
   private processData(): void {
+    if (!this.payrollData) return;
+    
     this.updateFilteredData();
-    this.updateKpiData();
-    this.updateTopEarnersTable();
+    this.updateKPIs();
+    this.updateCharts();
+  }
 
-    if (this.isBrowser) {
-      this.updatePayrollTrendChart();
-      this.updatePayrollCompositionChart();
-      this.updatePayrollCostByDeptChart();
+  private loadPayrollData(): void {
+    this.isLoading = true;
+    this.error = null;
+    
+    this.payrollService.getPayrollData(this.filters.period)
+      .pipe(
+        finalize(() => this.isLoading = false)
+      )
+      .subscribe({
+        next: (data: PayrollData) => {
+          this.payrollData = data;
+          this.processData();
+        },
+        error: (err: any) => {
+          this.error = 'Failed to load payroll data. Please try again later.';
+          console.error('Error loading payroll data:', err);
+        }
+      });
+  }
+  
+  private updateCharts(): void {
+    if (!this.payrollData) return;
+    
+    // Update payroll trend chart
+    if (this.payrollTrendData?.labels && this.payrollTrendData?.datasets?.[0]) {
+      this.payrollTrendData.labels = this.payrollData.trend.labels;
+      this.payrollTrendData.datasets[0].data = this.payrollData.trend.data;
     }
+    
+    // Update payroll composition chart
+    if (this.payrollCompositionData?.datasets?.[0]) {
+      this.payrollCompositionData.datasets[0].data = [
+        this.payrollData.composition.baseSalary,
+        this.payrollData.composition.bonuses,
+        this.payrollData.composition.overtime
+      ] as number[];
+    }
+    
+    // Update department breakdown
+    if (this.payrollCostByDeptData?.labels && this.payrollCostByDeptData?.datasets?.[0]) {
+      this.payrollCostByDeptData.labels = this.payrollData.departmentBreakdown.map((d: { name: string }) => d.name);
+      this.payrollCostByDeptData.datasets[0].data = this.payrollData.departmentBreakdown.map((d: { value: number }) => d.value);
+    }
+    
+    // Update top earners
+    this.updateTopEarners();
+  }
+
+  private updateKPIs(): void {
+    if (!this.payrollData) return;
+    
+    this.kpiData = {
+      totalCost: this.formatCurrency(this.payrollData.summary.totalCost),
+      totalEmployees: this.payrollData.summary.totalEmployees.toString(),
+      avgNetPay: this.formatCurrency(this.payrollData.summary.avgNetPay),
+      variablePay: this.formatCurrency(this.payrollData.summary.variablePay)
+    };
   }
 
   private updateFilteredData(): void {
-    let dataToFilter = [...this.initialPayrollData];
-    const today = new Date();
+    if (!this.payrollData) return;
+    
+    this.filteredData = [...this.payrollData.data];
     const period = this.filters.period;
 
     if (period !== 'all') {
       const periodInDays = parseInt(period, 10);
       const startDate = new Date();
-      startDate.setDate(today.getDate() - periodInDays);
-      dataToFilter = dataToFilter.filter(item => new Date(item.payDate) >= startDate);
+      startDate.setDate(startDate.getDate() - periodInDays);
+      this.filteredData = this.filteredData.filter((item: PayrollEntry) => {
+        const itemDate = new Date(item.payDate);
+        return itemDate >= startDate;
+      });
     }
-
-    this.filteredData = dataToFilter;
   }
   
-  private updateKpiData(): void {
-    if (this.filteredData.length === 0) {
-      this.kpiData = { totalCost: '₹0', totalEmployees: '0', avgNetPay: '₹0', variablePay: '₹0' };
-      return;
-    }
-    const totalCost = this.filteredData.reduce((sum, item) => sum + item.totalCost, 0);
-    const uniqueEmployees = new Set(this.filteredData.map(item => item.employeeId));
-    const totalEmployees = uniqueEmployees.size;
-    const avgNetPay = totalCost > 0 ? this.filteredData.reduce((sum, item) => sum + item.netPay, 0) / this.filteredData.length : 0;
-    const variablePay = this.filteredData.reduce((sum, item) => sum + item.bonus + item.overtimePay, 0);
-
-    this.kpiData = {
-      totalCost: this.formatCurrency(totalCost),
-      totalEmployees: totalEmployees.toLocaleString(),
-      avgNetPay: this.formatCurrency(avgNetPay),
-      variablePay: this.formatCurrency(variablePay),
-    };
-  }
-
-  private updateTopEarnersTable(): void {
-     if (!this.filteredData || this.filteredData.length === 0) {
-        this.topEarners = [];
-        return;
-      }
-      
-      const employeePay = this.filteredData.reduce((acc, curr) => {
-          if (!acc[curr.employeeId]) {
-              acc[curr.employeeId] = {
-                  name: curr.name,
-                  department: curr.department,
-                  totalCost: 0,
-              };
-          }
-          acc[curr.employeeId].totalCost += curr.totalCost;
-          return acc;
-      }, {} as any);
-
-      this.topEarners = Object.values(employeePay)
-          .sort((a: any, b: any) => b.totalCost - a.totalCost)
-          .slice(0, 5);
+  private updateTopEarners(): void {
+    if (!this.payrollData) return;
+    
+    this.topEarners = this.payrollData.topEarners
+      .slice(0, 5)
+      .map((earner: { name: string; department: string; position: string; salary: number }) => ({
+        name: earner.name,
+        department: earner.department,
+        position: earner.position,
+        salary: this.formatCurrency(earner.salary)
+      }));
   }
 
   private updatePayrollTrendChart(): void {
@@ -293,7 +316,15 @@ export class PayrollSectionComponent implements OnInit {
   }
 
   // --- HELPER & DATA GENERATION ---
-  private formatCurrency = (value: number | string) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(value));
+  // Format currency for display
+  formatCurrency(value: number): string {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(value);
+  }
 
   private generateMockData = (): PayrollEntry[] => {
     const departments = ['Engineering', 'Sales', 'Marketing', 'HR', 'Finance'];

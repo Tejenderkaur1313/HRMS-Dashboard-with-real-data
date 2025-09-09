@@ -13,23 +13,23 @@ import { TeamService, Team } from '../services/team.service';
     <div class="filters-container">
       <div class="filter-group">
         <label>Department</label>
-        <select (change)="updateDepartment($event)">
-          <option value="">All Departments</option>
+        <select [(ngModel)]="selectedDepartmentId">
+          <option [ngValue]="undefined">All Departments</option>
           <option *ngFor="let department of departments" [value]="department.id">{{department.name}}</option>
         </select>
       </div>
       
       <div class="filter-group">
         <label>Team</label>
-        <select (change)="updateTeam($event)">
-          <option value="">All Teams</option>
+        <select [(ngModel)]="selectedTeamId">
+          <option [ngValue]="undefined">All Teams</option>
           <option *ngFor="let team of teams" [value]="team.id">{{team.name}}</option>
         </select>
       </div>
       
       <div class="filter-group">
         <label>Month</label>
-        <select [(ngModel)]="selectedMonth" (change)="updateMonth()">
+        <select [(ngModel)]="selectedMonth" (change)="updateDateFromMonth()">
           <option value="">Select Month</option>
           <option value="01">January</option>
           <option value="02">February</option>
@@ -49,16 +49,17 @@ import { TeamService, Team } from '../services/team.service';
       <div class="filter-group date-range">
         <label>Date Range</label>
         <div class="date-inputs">
-          <input type="date" [(ngModel)]="fromDate" (change)="updateDateRange()" placeholder="From Date">
-          <input type="date" [(ngModel)]="toDate" (change)="updateDateRange()" placeholder="To Date">
+          <input type="date" [(ngModel)]="fromDate" placeholder="From Date">
+          <input type="date" [(ngModel)]="toDate" placeholder="To Date">
         </div>
       </div>
       
       <div class="filter-group">
         <label>Search</label>
-        <input type="text" placeholder="Search employees..." (input)="updateFilter('search', $event)">
+        <input type="text" [(ngModel)]="searchQuery" placeholder="Search employees...">
       </div>
       
+      <button (click)="applyFilters()" class="search-btn">Search</button>
       <button (click)="resetFilters()" class="reset-btn">Reset</button>
     </div>
   `,
@@ -112,10 +113,27 @@ import { TeamService, Team } from '../services/team.service';
     select:hover, input:hover {
       border-color: var(--primary-accent);
     }
+    .search-btn {
+      padding: 3px 8px;
+      background-color: var(--primary-accent);
+      color: white;
+      border: none;
+      border-radius: 3px;
+      font-weight: 500;
+      cursor: pointer;
+      font-size: 10px;
+      height: 24px;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+    }
+    .search-btn:hover {
+      background: #1d4ed8;
+      transform: translateY(-1px);
+    }
     .reset-btn {
       padding: 3px 8px;
-      background: var(--primary-accent);
-      color: white;
+      background: var(--background-secondary);
+      color: var(--text-secondary);
       border: none;
       border-radius: 3px;
       font-weight: 500;
@@ -145,19 +163,24 @@ import { TeamService, Team } from '../services/team.service';
 export class GlobalFiltersComponent implements OnInit {
   departments: Department[] = [];
   teams: Team[] = [];
-  fromDate: string = '2025-08-01';
-  toDate: string = '2025-08-31';
-  selectedMonth: string = '08';
+  fromDate: string = '';
+  toDate: string = '';
+  selectedMonth: string = '';
+  selectedDepartmentId: number | undefined;
+  selectedTeamId: number | undefined;
+  searchQuery: string | undefined;
 
   constructor(
     private globalFilterService: GlobalFilterService,
     private departmentService: DepartmentService,
     private teamService: TeamService
-  ) {}
+  ) {
+    this.setToCurrentMonth();
+  }
 
   ngOnInit(): void {
-    // Initialize with August 2025 date range
-    this.globalFilterService.setDateRange(this.fromDate, this.toDate);
+    // Apply initial filters on load
+    this.applyFilters();
     
     // Load departments
     this.departmentService.getDepartments().subscribe({
@@ -180,28 +203,26 @@ export class GlobalFiltersComponent implements OnInit {
     });
   }
 
-  updateDepartment(event: any): void {
-    const departmentId = event.target.value ? parseInt(event.target.value) : undefined;
-    this.globalFilterService.updateFilters({ departmentId });
-  }
-
-  updateDateRange(): void {
+  applyFilters(): void {
     if (this.fromDate && this.toDate) {
       this.globalFilterService.setDateRange(this.fromDate, this.toDate);
     }
+
+    this.globalFilterService.updateFilters({
+      departmentId: this.selectedDepartmentId,
+      teamId: this.selectedTeamId,
+      search: this.searchQuery
+    });
   }
 
-  updateTeam(event: any): void {
-    const teamId = event.target.value ? parseInt(event.target.value) : undefined;
-    this.globalFilterService.updateFilters({ teamId });
+  setToCurrentMonth(): void {
+    const today = new Date();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    this.selectedMonth = month;
+    this.updateDateFromMonth();
   }
 
-  updateFilter(type: string, event: any): void {
-    const value = event.target.value;
-    this.globalFilterService.updateFilters({ [type]: value || undefined });
-  }
-
-  updateMonth(): void {
+  updateDateFromMonth(): void {
     if (this.selectedMonth) {
       const currentYear = new Date().getFullYear();
       const month = this.selectedMonth;
@@ -211,18 +232,14 @@ export class GlobalFiltersComponent implements OnInit {
       
       this.fromDate = fromDate;
       this.toDate = toDate;
-      this.globalFilterService.setDateRange(fromDate, toDate);
     }
   }
 
   resetFilters(): void {
-    this.fromDate = '2025-08-01';
-    this.toDate = '2025-08-31';
-    this.selectedMonth = '08';
-    this.globalFilterService.updateFilters({
-      fromDate: this.fromDate,
-      toDate: this.toDate,
-      departmentId: undefined
-    });
+    this.setToCurrentMonth();
+    this.selectedDepartmentId = undefined;
+    this.selectedTeamId = undefined;
+    this.searchQuery = undefined;
+    this.applyFilters();
   }
 }

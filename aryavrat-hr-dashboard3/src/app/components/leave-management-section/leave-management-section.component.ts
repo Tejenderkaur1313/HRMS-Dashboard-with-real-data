@@ -25,7 +25,6 @@ import { Subject, takeUntil, combineLatest, map, distinctUntilChanged, switchMap
         <div *ngIf="isLoadingData" class="flex flex-col items-center justify-center py-12">
           <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
           <p class="text-gray-600 text-lg">{{ loadingMessage }}</p>
-          <p class="text-gray-400 text-sm mt-2">Loading leave data...</p>
         </div>
 
         <!-- Main Content - Only show when not loading -->
@@ -33,25 +32,57 @@ import { Subject, takeUntil, combineLatest, map, distinctUntilChanged, switchMap
             <!-- KPI Row 1 -->
             <h2 class="text-lg font-semibold text-gray-700 mb-4">Monthly Overview</h2>
             <div class="kpi-row">
-                <div class="kpi-card" style="border-left-color: var(--primary-accent);">
-                  <div class="kpi-value">{{ kpiData.totalLeavesMonth }}</div>
-                  <div class="kpi-label">Total Leaves (This Month)</div>
-                  <div class="kpi-trend">Based on approved requests</div>
+                <div class="kpi-card leaves">
+                  <div class="kpi-icon">
+                    <i class="fas fa-calendar-alt"></i>
+                  </div>
+                  <div class="kpi-details">
+                    <div class="kpi-value">{{ kpiData.totalLeavesMonth }}</div>
+                    <div class="kpi-label">Total Leaves (This Month)</div>
+                    <div class="kpi-trend positive">
+                      <i class="fas fa-arrow-up"></i>
+                      Based on approved requests
+                    </div>
+                  </div>
                 </div>
-                <div class="kpi-card" style="border-left-color: var(--teal);">
-                  <div class="kpi-value">{{ kpiData.avgLeavesWeekly }}</div>
-                  <div class="kpi-label">Average Leaves (Weekly)</div>
-                  <div class="kpi-trend">Average leaves taken per week</div>
+                <div class="kpi-card employees">
+                  <div class="kpi-icon">
+                    <i class="fas fa-chart-line"></i>
+                  </div>
+                  <div class="kpi-details">
+                    <div class="kpi-value">{{ kpiData.avgLeavesWeekly }}</div>
+                    <div class="kpi-label">Average Leaves (Weekly)</div>
+                    <div class="kpi-trend positive">
+                      <i class="fas fa-arrow-up"></i>
+                      Average leaves taken per week
+                    </div>
+                  </div>
                 </div>
-                <div class="kpi-card" style="border-left-color: var(--warning);">
-                  <div class="kpi-value">{{ kpiData.pendingApprovals }}</div>
-                  <div class="kpi-label">Pending Approvals</div>
-                  <div class="kpi-trend">Avg 1.5 days to process</div>
+                <div class="kpi-card leaves">
+                  <div class="kpi-icon">
+                    <i class="fas fa-clock"></i>
+                  </div>
+                  <div class="kpi-details">
+                    <div class="kpi-value">{{ kpiData.pendingApprovals }}</div>
+                    <div class="kpi-label">Pending Approvals</div>
+                    <div class="kpi-trend negative">
+                      <i class="fas fa-arrow-down"></i>
+                      Avg 1.5 days to process
+                    </div>
+                  </div>
                 </div>
-                <div class="kpi-card" style="border-left-color: var(--success);">
-                  <div class="kpi-value">{{ kpiData.approvalRate }}</div>
-                  <div class="kpi-label">Approval Rate</div>
-                  <div class="kpi-trend">Manager approval rate YTD</div>
+                <div class="kpi-card performance">
+                  <div class="kpi-icon">
+                    <i class="fas fa-check-circle"></i>
+                  </div>
+                  <div class="kpi-details">
+                    <div class="kpi-value">{{ kpiData.approvalRate }}</div>
+                    <div class="kpi-label">Approval Rate</div>
+                    <div class="kpi-trend positive">
+                      <i class="fas fa-arrow-up"></i>
+                      Manager approval rate monthly
+                    </div>
+                  </div>
                 </div>
             </div>
 
@@ -91,10 +122,10 @@ import { Subject, takeUntil, combineLatest, map, distinctUntilChanged, switchMap
 
                 <!-- Chart 4: Planned vs Unplanned Leaves -->
                 <div class="bg-white p-5 rounded-xl shadow chart-card">
-                    <div class="flex flex-wrap justify-between items-start mb-4 gap-2">
-                        <h3 class="text-lg font-semibold text-gray-800">Planned vs Unplanned</h3>
-                         <div class="flex items-center gap-2">
-                            <select [(ngModel)]="plannedVsUnplannedTimeRange" (ngModelChange)="updatePlannedVsUnplanned()" class="filter-select">
+                    <div class="chart-header">
+                        <h3>Planned vs Unplanned</h3>
+                        <div class="chart-actions">
+                            <select [(ngModel)]="plannedVsUnplannedTimeRange" (ngModelChange)="updatePlannedVsUnplanned()" class="time-filter">
                                 <option>Last Week</option>
                                 <option>Last Month</option>
                                 <option>Last 3 Months</option>
@@ -110,20 +141,15 @@ import { Subject, takeUntil, combineLatest, map, distinctUntilChanged, switchMap
             </div>
 
 
-             <!-- Dedicated Section: Top Employees Last Month -->
+             <!-- Dedicated Section: Top Employees Current Period -->
             <div class="mt-6">
               <div class="bg-white p-5 rounded-xl shadow chart-card w-full">
-                <div class="flex items-center space-x-2 mb-4">
-                  <!-- === CHANGE IS HERE === -->
-                  <svg style="width: 24px; height: 24px; flex-shrink: 0;" class="text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                  </svg>
-                  <h3 class="text-lg font-semibold text-gray-900">Top Employees (Last Month)</h3>
+                <div class="mb-4">
+                  <h3 class="text-lg font-semibold text-gray-900">Top Employees (Current Period)</h3>
                 </div>
                 <ul class="space-y-3">
                   <li *ngFor="let emp of getTopThreeEmployees(); let i = index" class="flex justify-between items-center text-sm p-2 rounded-md bg-gray-100">
-                    <span class="font-medium text-gray-700">{{ i + 1 }}. {{ emp.name }}</span>
-                    <span class="font-bold text-gray-800 bg-gray-200 px-2 py-1 rounded-full text-xs">{{ emp.leaveCount }} leaves</span>
+                    <span class="font-medium text-gray-700">{{ i + 1 }}. {{ emp.name }}:&nbsp;&nbsp;&nbsp;{{ emp.leaveCount }} leaves</span>
                   </li>
                 </ul>
               </div>
@@ -133,50 +159,166 @@ import { Subject, takeUntil, combineLatest, map, distinctUntilChanged, switchMap
     </div>
   `,
   styles: [`
-    /* Define color variables locally for this component */
+    /* Define color variables to match dashboard */
     :host {
-        --primary-accent: #4f46e5;
-        --warning: #f97316;
-        --success: #10b981;
-        --info: #3b82f6;
-        --teal: #14b8a6;
-        --purple: #8b5cf6;
-        --text-muted: #6b7280;
+      --primary-color: #4f46e5;
+      --primary-light: #818cf8;
+      --success-color: #10b981;
+      --warning-color: #f59e0b;
+      --danger-color: #ef4444;
+      --text-primary: #1f2937;
+      --text-secondary: #6b7280;
+      --border-color: #e5e7eb;
+      --bg-light: #f9fafb;
+      --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      --border-radius: 12px;
     }
 
+    /* KPI Row - Exact match to Dashboard Overview */
     .kpi-row {
       display: flex;
       flex-wrap: wrap;
-      gap: 1rem; /* 16px */
+      gap: 1.25rem;
+      margin-bottom: 2rem;
+      justify-content: space-between;
+      
+      @media (max-width: 767px) {
+        flex-direction: column;
+      }
+      
+      @media (min-width: 768px) and (max-width: 1023px) {
+        justify-content: flex-start;
+      }
+      
+      @media (min-width: 1024px) {
+        justify-content: space-between;
+        flex-wrap: nowrap;
+      }
     }
 
+    /* KPI Card - Exact match to dashboard */
     .kpi-card {
-      border-left-width: 4px;
-      transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
       background: white;
-      padding: 5px 5px; /* Reduced padding */
-      border-radius: 0.5rem;
-      box-shadow: 0 1px 3px 0 rgba(0,0,0,.1), 0 1px 2px 0 rgba(0,0,0,.06);
-      min-height: 80px; /* Fixed smaller height */
-    }
-    
-    .kpi-value {
-      font-size: 2.25rem;
-      font-weight: 800;
-      color: #111827;
-      margin-bottom: 0.25rem;
-    }
-
-    .kpi-label {
-      font-size: 1rem;
-      font-weight: 600;
-      color: #374151;
-      margin-bottom: 0.25rem;
-    }
-
-    .kpi-trend {
-      font-size: 0.875rem;
-      color: #9ca3af;
+      border-radius: var(--border-radius);
+      padding: 7px 6.5px 8px;
+      box-shadow: var(--card-shadow);
+      display: flex;
+      align-items: left;
+      transition: transform 0.2s, box-shadow 0.2s;
+      flex: 1;
+      min-width: 0;
+      
+      @media (max-width: 767px) {
+        flex: 1 1 100%;
+      }
+      
+      @media (min-width: 768px) and (max-width: 1023px) {
+        flex: 1 1 calc(50% - 0.625rem);
+      }
+      
+      @media (min-width: 1024px) {
+        flex: 1 1 calc(25% - 0.9375rem);
+        max-width: calc(25% - 0.9375rem);
+      }
+      
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      }
+      
+      .kpi-icon {
+        width: 3.5rem;
+        height: 3.5rem;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+        font-size: 1.5rem;
+        color: white;
+        
+        i {
+          font-size: 1.5rem;
+        }
+      }
+      
+      .kpi-details {
+        flex: 1;
+      }
+      
+      .kpi-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--text-primary);
+        line-height: 1.2;
+        margin-bottom: 0.25rem;
+        
+        .rating-out-of {
+          font-size: 1rem;
+          font-weight: 500;
+          color: var(--text-secondary);
+          margin-left: 0.25rem;
+        }
+      }
+      
+      .kpi-label {
+        font-size: 0.875rem;
+        color: var(--text-secondary);
+        margin-bottom: 0.25rem;
+      }
+      
+      .kpi-trend {
+        display: flex;
+        align-items: center;
+        font-size: 0.75rem;
+        font-weight: 500;
+        
+        i {
+          font-size: 0.75rem;
+          margin-right: 0.25rem;
+        }
+        
+        &.positive {
+          color: var(--success-color);
+        }
+        
+        &.negative {
+          color: var(--danger-color);
+        }
+      }
+      
+      // Card specific styles - exact match to dashboard
+      &.attendance {
+        border-left: 4px solid #4f46e5;
+        
+        .kpi-icon {
+          background: linear-gradient(135deg, #4f46e5 0%, #818cf8 100%);
+        }
+      }
+      
+      &.employees {
+        border-left: 4px solid #10b981;
+        
+        .kpi-icon {
+          background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+        }
+      }
+      
+      &.leaves {
+        border-left: 4px solid #f59e0b;
+        
+        .kpi-icon {
+          background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+        }
+      }
+      
+      &.performance {
+        border-left: 4px solid #8b5cf6;
+        
+        .kpi-icon {
+          background: linear-gradient(135deg, #8b5cf6 0%, #c4b5fd 100%);
+        }
+      }
     }
 
     .chart-card {
@@ -228,6 +370,54 @@ import { Subject, takeUntil, combineLatest, map, distinctUntilChanged, switchMap
       font-style: italic;
       min-height: 180px;
     }
+    /* Chart Header Styles */
+    .chart-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+    
+    .chart-header h3 {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #1f2937;
+        margin: 0;
+    }
+    
+    .chart-actions {
+        display: flex;
+        gap: 0.75rem;
+    }
+    
+    .time-filter {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 0.5rem;
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+        color: #6b7280;
+        cursor: pointer;
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        padding-right: 2rem;
+        background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+        background-position: right 0.5rem center;
+        background-repeat: no-repeat;
+        background-size: 1.5em 1.5em;
+    }
+    
+    .time-filter:focus {
+        outline: none;
+        border-color: #4f46e5;
+        box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+    }
+    
+    .time-filter:hover {
+        border-color: #d1d5db;
+    }
+
     .filter-select {
         font-size: 0.875rem;
         padding: 0.25rem 0.5rem;
@@ -256,7 +446,7 @@ export class LeaveManagementSectionComponent implements OnInit, OnDestroy {
   loadingMessage: string = 'Loading leave data...';
   masterData: any[] = [];
   departments: string[] = [];
-  leaveTypes: string[] = ['Sick', 'Casual', 'Paid', 'Unpaid'];
+  leaveTypes: string[] = [];
   selectedYear: number = new Date().getFullYear();
   selectedMonth: string = 'All';
   selectedDepartment: string = 'All';
@@ -268,20 +458,14 @@ export class LeaveManagementSectionComponent implements OnInit, OnDestroy {
   leavesByDepartment: { name: string; value: number }[] = [];
   leavesByType: { name: string; value: number }[] = [];
   leaveTrend: { name: string; series: { name: string; value: number }[] }[] = [];
-  recentLeaves: { employee_name: string; leave_type: string; status: string }[] = [];
+  allLeaveTypes: string[] = [];
+  recentLeaves: { employee_name: string; leave_type: string; status: string; from_date: string }[] = [];
 
   // Available options for dropdowns
-  months: string[] = ['January', 'February', 'March', 'April', 'May', 'June',
-                      'July', 'August', 'September', 'October', 'November', 'December'];
+  months: string[] = [];
 
   // KPI Data
-  kpiData = {
-    totalLeavesMonth: 0,
-    avgLeavesWeekly: 0,
-    pendingApprovals: 0,
-    approvalRate: '0%',
-    rejectionRate: '0%'
-  };
+  kpiData: any = undefined;
 
   // Filter states
   distChartDepartments: string[] = [];
@@ -301,28 +485,7 @@ export class LeaveManagementSectionComponent implements OnInit, OnDestroy {
   // Chart data
   leaveTrendData: ChartData<'line'> = {
     labels: [],
-    datasets: [{
-      label: 'Sick Leave',
-      data: [],
-      borderColor: '#ef4444',
-      backgroundColor: 'rgba(239, 68, 68, 0.1)',
-      tension: 0.4,
-      fill: true
-    }, {
-      label: 'Casual Leave',
-      data: [],
-      borderColor: '#3b82f6',
-      backgroundColor: 'rgba(59, 130, 246, 0.1)',
-      tension: 0.4,
-      fill: true
-    }, {
-      label: 'Paid Leave',
-      data: [],
-      borderColor: '#22c55e',
-      backgroundColor: 'rgba(34, 197, 94, 0.1)',
-      tension: 0.4,
-      fill: true
-    }]
+    datasets: []
   };
 
   leaveTrendOptions: ChartOptions<'line'> = {
@@ -365,15 +528,16 @@ export class LeaveManagementSectionComponent implements OnInit, OnDestroy {
       data: [1, 1, 1, 1],
       backgroundColor: ['#ef4444', '#f59e0b', '#10b981', '#6b7280'],
       borderColor: ['#dc2626', '#d97706', '#059669', '#4b5563'],
-      borderWidth: 2,
-      hoverBackgroundColor: ['#fca5a5', '#fcd34d', '#6ee7b7', '#9ca3af'],
-      hoverBorderColor: ['#991b1b', '#b45309', '#047857', '#374151']
+      borderWidth: 2
     }]
   };
 
   leaveDistributionOptions: ChartOptions<'pie'> = {
     responsive: true,
     maintainAspectRatio: false,
+    hover: {
+      mode: null as any
+    },
     plugins: {
       legend: {
         position: 'bottom',
@@ -383,10 +547,27 @@ export class LeaveManagementSectionComponent implements OnInit, OnDestroy {
         }
       },
       tooltip: {
+        enabled: true,
+        external: function(context: any) {
+          // Keep tooltips but disable hover effects
+        },
         callbacks: {
           label: function(context: any) {
             return `${context.label}: ${context.parsed}`;
           }
+        }
+      }
+    },
+    datasets: {
+      pie: {
+        hoverBackgroundColor: function(ctx: any) {
+          return ctx.element.options.backgroundColor;
+        },
+        hoverBorderColor: function(ctx: any) {
+          return ctx.element.options.borderColor;
+        },
+        hoverBorderWidth: function(ctx: any) {
+          return ctx.element.options.borderWidth;
         }
       }
     },
@@ -395,23 +576,7 @@ export class LeaveManagementSectionComponent implements OnInit, OnDestroy {
 
   departmentUtilizationData: ChartData<'bar'> = {
     labels: [],
-    datasets: [{
-      label: 'Sick',
-      data: [],
-      backgroundColor: '#ef4444',
-    }, {
-      label: 'Casual',
-      data: [],
-      backgroundColor: '#3b82f6',
-    }, {
-      label: 'Paid',
-      data: [],
-      backgroundColor: '#22c55e',
-    }, {
-      label: 'Unpaid',
-      data: [],
-      backgroundColor: '#6b7280',
-    }]
+    datasets: []
   };
 
   departmentUtilizationOptions: ChartOptions<'bar'> = {
@@ -421,30 +586,34 @@ export class LeaveManagementSectionComponent implements OnInit, OnDestroy {
       legend: {
         position: 'top',
         labels: {
-          font: { size: 9 },
-          padding: 8,
+          font: { size: 11 },
+          padding: 15,
           usePointStyle: true,
-          boxWidth: 10
+          boxWidth: 12
         }
       }
     },
     scales: {
       y: {
+        stacked: true,
         beginAtZero: true,
         ticks: {
-          font: { size: 8 },
-          maxTicksLimit: 4
+          font: { size: 10 },
+          stepSize: 1,
+          precision: 0
         }
       },
       x: {
+        stacked: true,
         ticks: {
-          font: { size: 8 },
-          maxRotation: 0
+          font: { size: 11 },
+          maxRotation: 25,
+          minRotation: 0
         }
       }
     },
     layout: {
-      padding: { top: 10, bottom: 10, left: 10, right: 10 }
+      padding: { top: 10, bottom: 0, left: 10, right: 10 }
     }
   };
 
@@ -543,8 +712,7 @@ export class LeaveManagementSectionComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
-    console.log('🎯 Leave Management Component Initialized');
-
+    
     // Load departments and teams data first
     this.loadDepartmentsAndTeams();
 
@@ -552,15 +720,13 @@ export class LeaveManagementSectionComponent implements OnInit, OnDestroy {
     this.globalFilterService.filters$.pipe(
       takeUntil(this.destroy$),
       switchMap((filters: any) => {
-        console.log('🔄 Global filters changed, loading leave data from API...', filters);
-        this.isLoadingData = true;
+                this.isLoadingData = true;
         this.loadingMessage = 'Loading leave data...';
         return this.leaveService.getLeaveData(filters.fromDate, filters.toDate);
       })
     ).subscribe({
       next: (data: LeaveData) => {
-        console.log('✅ Real leave data received from API:', data);
-        this.processLeaveData(data);
+                this.processLeaveData(data);
         this.isLoadingData = false;
       },
       error: (error: any) => {
@@ -578,13 +744,11 @@ export class LeaveManagementSectionComponent implements OnInit, OnDestroy {
   }
 
   private loadDepartmentsAndTeams(): void {
-    console.log('🏢 Loading departments and teams from API...');
-    
+        
     // Load departments
     this.departmentService.getDepartments().subscribe({
       next: (departments: Department[]) => {
-        console.log('✅ Departments loaded for leave management:', departments);
-        this.departments = departments.map(d => d.name);
+                this.departments = departments.map(d => d.name);
         this.distChartDepartments = [...this.departments];
         this.plannedVsUnplannedDepts = [...this.departments];
       },
@@ -596,8 +760,7 @@ export class LeaveManagementSectionComponent implements OnInit, OnDestroy {
     // Load teams
     this.teamService.getTeamData().subscribe({
       next: (teams: Team[]) => {
-        console.log('✅ Teams loaded for leave management:', teams);
-        // You can use team data for employee-specific leave analytics
+                // You can use team data for employee-specific leave analytics
       },
       error: (error: any) => {
         console.error('❌ Failed to load team data:', error);
@@ -608,8 +771,7 @@ export class LeaveManagementSectionComponent implements OnInit, OnDestroy {
   // Data loading is now handled by the global filter subscription
 
   private processLeaveData(data: LeaveData): void {
-    console.log('📊 Processing leave data:', data);
-    
+        
     // Store API response data in component properties
     this.totalLeaves = data.totalLeaves;
     this.approvedLeaves = data.approvedLeaves;
@@ -619,13 +781,34 @@ export class LeaveManagementSectionComponent implements OnInit, OnDestroy {
     this.leavesByType = data.leavesByType || [];
     this.leaveTrend = data.leaveTrend || [];
     this.recentLeaves = data.recentLeaves || [];
+    this.allLeaveTypes = data.leavesByType.map(lt => lt.name);
+    
+    // Calculate monthly approval rate
+    const currentMonth = new Date().getMonth() + 1;
+    const currentYear = new Date().getFullYear();
+    
+    // Filter leaves for current month
+    const monthlyLeaves = data.recentLeaves?.filter((leave: any) => {
+      if (leave.created_at || leave.date || leave.leave_date) {
+        const leaveDate = new Date(leave.created_at || leave.date || leave.leave_date);
+        return leaveDate.getMonth() + 1 === currentMonth && leaveDate.getFullYear() === currentYear;
+      }
+      return false;
+    }) || [];
+    
+    const monthlyApproved = monthlyLeaves.filter((leave: any) => 
+      leave.status === 'approved' || leave.status === 'Approved'
+    ).length;
+    
+    const monthlyTotal = monthlyLeaves.length;
+    const monthlyApprovalRate = monthlyTotal > 0 ? Math.round((monthlyApproved / monthlyTotal) * 100) : 0;
     
     // Update KPI data
     this.kpiData = {
       totalLeavesMonth: data.totalLeaves,
       avgLeavesWeekly: Math.round(data.totalLeaves / 4),
       pendingApprovals: data.pendingLeaves,
-      approvalRate: `${Math.round((data.approvedLeaves / data.totalLeaves) * 100)}%`,
+      approvalRate: `${monthlyApprovalRate}%`,
       rejectionRate: `${Math.round((data.rejectedLeaves / data.totalLeaves) * 100)}%`
     };
     
@@ -640,34 +823,127 @@ export class LeaveManagementSectionComponent implements OnInit, OnDestroy {
     // Update charts with new data
     this.updateAllCharts();
 
-    console.log('✅ Leave data processing completed');
-  }
+      }
 
 
   private updateAllCharts() {
-    console.log('📊 Updating all leave charts...');
-    this.updateLeaveTrendChart();
+        this.updateLeaveTrendChart();
     this.updateLeaveDistributionChart();
     this.updateDepartmentUtilizationChart();
     this.updatePlannedVsUnplannedChart();
     this.updateTopEmployeesChart();
-    console.log('✅ All leave charts updated');
-  }
+      }
 
   private updateLeaveTrendChart() {
-    console.log('📈 Updating leave trend chart with real API data...');
+    if (!this.masterData || this.masterData.length === 0) return;
 
-    // Use real data from API response
-    if (this.leaveTrend && this.leaveTrend.length > 0) {
-      const trendData = this.leaveTrend[0].series;
-      this.leaveTrendData.labels = trendData.map(item => item.name);
-      this.leaveTrendData.datasets[0].data = trendData.map(item => item.value);
+    // Get current filter dates to determine the selected month/period
+    const currentFilters = this.globalFilterService.getCurrentFilters();
+    const fromDate = new Date(currentFilters.fromDate);
+    const toDate = new Date(currentFilters.toDate);
+    
+    // Check if the date range is within a single month
+    const isSameMonth = fromDate.getMonth() === toDate.getMonth() && fromDate.getFullYear() === toDate.getFullYear();
+    
+    if (isSameMonth) {
+      // Show weekly data for the selected month
+      this.updateWeeklyLeaveTrendChart(fromDate, toDate);
+    } else {
+      // Show monthly data for multi-month ranges
+      this.updateMonthlyLeaveTrendChart();
     }
   }
 
-  private updateLeaveDistributionChart() {
-    console.log('📈 Updating leave distribution chart with real API data...');
+  private updateWeeklyLeaveTrendChart(fromDate: Date, toDate: Date) {
+    const weeklyData: { [week: string]: { [leaveType: string]: number } } = {};
+    
+    // Generate week labels for the month
+    const monthStart = new Date(fromDate.getFullYear(), fromDate.getMonth(), 1);
+    const monthEnd = new Date(fromDate.getFullYear(), fromDate.getMonth() + 1, 0);
+    
+    // Calculate weeks in the month
+    const weeks: string[] = [];
+    let weekNumber = 1;
+    let currentWeekStart = new Date(monthStart);
+    
+    while (currentWeekStart <= monthEnd) {
+      const weekLabel = `Week ${weekNumber}`;
+      weeks.push(weekLabel);
+      weeklyData[weekLabel] = {};
+      
+      // Initialize all leave types for this week
+      this.allLeaveTypes.forEach(type => {
+        weeklyData[weekLabel][type] = 0;
+      });
+      
+      // Move to next week (7 days)
+      currentWeekStart = new Date(currentWeekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
+      weekNumber++;
+    }
 
+    // Process leave data and assign to appropriate weeks
+    this.masterData.forEach(item => {
+      const leaveDate = new Date(item.from_date);
+      
+      // Check if leave is within the current month
+      if (leaveDate.getMonth() === fromDate.getMonth() && leaveDate.getFullYear() === fromDate.getFullYear()) {
+        // Calculate which week this leave belongs to
+        const dayOfMonth = leaveDate.getDate();
+        const weekIndex = Math.ceil(dayOfMonth / 7) - 1;
+        const weekLabel = weeks[weekIndex];
+        
+        if (weekLabel && weeklyData[weekLabel] && item.leave_type) {
+          weeklyData[weekLabel][item.leave_type] = (weeklyData[weekLabel][item.leave_type] || 0) + 1;
+        }
+      }
+    });
+
+    // Update chart data
+    const colors = ['#ef4444', '#3b82f6', '#22c55e', '#f97316', '#8b5cf6', '#14b8a6'];
+    this.leaveTrendData.labels = weeks;
+    this.leaveTrendData.datasets = this.allLeaveTypes.map((type, index) => ({
+      label: type,
+      data: weeks.map(week => weeklyData[week][type] || 0),
+      borderColor: colors[index % colors.length],
+      backgroundColor: `${colors[index % colors.length]}1A`,
+      tension: 0.4,
+      fill: true
+    }));
+  }
+
+  private updateMonthlyLeaveTrendChart() {
+    const monthlyData: { [month: string]: { [leaveType: string]: number } } = {};
+    const labels = [...new Set(this.masterData.map(item => new Date(item.from_date).toLocaleString('default', { month: 'short' })))]
+      .sort((a, b) => new Date(`1 ${a} 2000`) > new Date(`1 ${b} 2000`) ? 1 : -1);
+
+    labels.forEach(month => {
+      monthlyData[month] = {};
+      this.allLeaveTypes.forEach(type => {
+        monthlyData[month][type] = 0;
+      });
+    });
+
+    this.masterData.forEach(item => {
+      const month = new Date(item.from_date).toLocaleString('default', { month: 'short' });
+      if (monthlyData[month]) {
+        monthlyData[month][item.leave_type] = (monthlyData[month][item.leave_type] || 0) + 1;
+      }
+    });
+
+    const colors = ['#ef4444', '#3b82f6', '#22c55e', '#f97316', '#8b5cf6', '#14b8a6'];
+    this.leaveTrendData.labels = labels;
+    this.leaveTrendData.datasets = this.allLeaveTypes.map((type, index) => ({
+      label: type,
+      data: labels.map(month => monthlyData[month][type] || 0),
+      borderColor: colors[index % colors.length],
+      backgroundColor: `${colors[index % colors.length]}1A`,
+      tension: 0.4,
+      fill: true
+    }));
+  }
+
+  private updateLeaveDistributionChart() {
+    
     // Use real data from API response
     if (this.leavesByType && this.leavesByType.length > 0) {
       // Use actual leave type names and values from API
@@ -677,13 +953,9 @@ export class LeaveManagementSectionComponent implements OnInit, OnDestroy {
       // Generate colors dynamically based on number of leave types
       const colors = ['#ef4444', '#f59e0b', '#10b981', '#6b7280', '#8b5cf6', '#f97316', '#06b6d4'];
       const borderColors = ['#dc2626', '#d97706', '#059669', '#4b5563', '#7c3aed', '#ea580c', '#0891b2'];
-      const hoverColors = ['#fca5a5', '#fcd34d', '#6ee7b7', '#9ca3af', '#c4b5fd', '#fed7aa', '#7dd3fc'];
-      const hoverBorderColors = ['#991b1b', '#b45309', '#047857', '#374151', '#5b21b6', '#c2410c', '#0e7490'];
       
       this.leaveDistributionData.datasets[0].backgroundColor = this.leavesByType.map((_, i) => colors[i % colors.length]);
       this.leaveDistributionData.datasets[0].borderColor = this.leavesByType.map((_, i) => borderColors[i % borderColors.length]);
-      this.leaveDistributionData.datasets[0].hoverBackgroundColor = this.leavesByType.map((_, i) => hoverColors[i % hoverColors.length]);
-      this.leaveDistributionData.datasets[0].hoverBorderColor = this.leavesByType.map((_, i) => hoverBorderColors[i % hoverBorderColors.length]);
     } else {
       // Show empty state when no data
       this.leaveDistributionData.labels = ['No Data'];
@@ -694,45 +966,39 @@ export class LeaveManagementSectionComponent implements OnInit, OnDestroy {
   }
 
   private updateDepartmentUtilizationChart() {
-    console.log('📈 Updating department utilization chart with real API data...');
-
+    
     // Use real department data from API
     if (this.leavesByDepartment && this.leavesByDepartment.length > 0) {
       // Use actual department names from API (now properly mapped)
       const departmentNames = this.leavesByDepartment.map(dept => dept.name);
       this.departmentUtilizationData.labels = departmentNames;
       
-      // Create dynamic leave type distribution based on actual API data
-      const leaveTypesByDept: { [dept: string]: { [type: string]: number } } = {};
-      
-      // Initialize departments
+      // Rebuild the data structure for the stacked bar chart
+      const leaveTypesByDept: { [deptName: string]: { [leaveType: string]: number } } = {};
+
+      // Initialize the structure with all departments and leave types
       departmentNames.forEach(deptName => {
         leaveTypesByDept[deptName] = {};
-        // Initialize all leave types to 0
-        this.leavesByType.forEach(leaveType => {
-          leaveTypesByDept[deptName][leaveType.name] = 0;
+        this.allLeaveTypes.forEach(leaveType => {
+          leaveTypesByDept[deptName][leaveType] = 0;
         });
       });
-      
-      // Distribute total department leaves across leave types proportionally
-      this.leavesByDepartment.forEach(dept => {
-        const totalDeptLeaves = dept.value;
-        this.leavesByType.forEach((leaveType, index) => {
-          const proportion = leaveType.value / this.totalLeaves;
-          leaveTypesByDept[dept.name][leaveType.name] = Math.round(totalDeptLeaves * proportion);
-        });
+
+      // Populate the structure with actual leave counts from masterData
+      this.masterData.forEach(leave => {
+        if (leave.department_name && leaveTypesByDept[leave.department_name] && leave.leave_type) {
+          leaveTypesByDept[leave.department_name][leave.leave_type]++;
+        }
       });
-      
-      // Update chart datasets with actual leave types from API
-      this.departmentUtilizationData.datasets = this.leavesByType.map((leaveType, index) => {
-        const colors = ['#ef4444', '#3b82f6', '#22c55e', '#6b7280', '#8b5cf6', '#f97316'];
-        return {
-          label: leaveType.name,
-          data: departmentNames.map(dept => leaveTypesByDept[dept][leaveType.name] || 0),
-          backgroundColor: colors[index % colors.length]
-        };
-      });
-      
+
+      const colors = ['#ef4444', '#3b82f6', '#22c55e', '#6b7280', '#8b5cf6', '#f97316'];
+      this.departmentUtilizationData.datasets = this.allLeaveTypes.map((leaveType, index) => ({
+        label: leaveType,
+        data: departmentNames.map(deptName => leaveTypesByDept[deptName][leaveType] || 0),
+        backgroundColor: colors[index % colors.length],
+        stack: 'a',
+      }));
+
       this.departments = departmentNames;
     } else {
       // Show empty state when no data
@@ -757,24 +1023,94 @@ export class LeaveManagementSectionComponent implements OnInit, OnDestroy {
   }
 
   private updatePlannedVsUnplannedChart() {
-    console.log('📈 Updating planned vs unplanned chart with real API data...');
+    if (!this.masterData || this.masterData.length === 0) {
+      this.plannedVsUnplannedData.datasets[0].data = [0, 0];
+      return;
+    }
 
-    // Calculate from real leave data
-    const totalLeaves = this.totalLeaves || 0;
-    const plannedLeaves = Math.floor(totalLeaves * 0.75); // Assuming 75% are planned
-    const unplannedLeaves = totalLeaves - plannedLeaves;
+    // Filter data based on selected time range
+    const filteredData = this.filterDataByTimeRange(this.masterData, this.plannedVsUnplannedTimeRange);
+    
+    // Analyze leave data to determine planned vs unplanned
+    let plannedCount = 0;
+    let unplannedCount = 0;
+    
+    filteredData.forEach(leave => {
+      // Consider leaves as planned if they were requested more than 3 days in advance
+      // or if leave_type indicates planned leave (like 'Annual', 'Vacation', etc.)
+      const requestDate = new Date(leave.created_at || leave.request_date);
+      const leaveStartDate = new Date(leave.from_date);
+      const daysInAdvance = Math.ceil((leaveStartDate.getTime() - requestDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      const plannedLeaveTypes = ['annual', 'vacation', 'planned', 'holiday'];
+      const unplannedLeaveTypes = ['sick', 'emergency', 'medical', 'urgent'];
+      
+      const leaveType = (leave.leave_type || '').toLowerCase();
+      
+      if (daysInAdvance >= 3 || plannedLeaveTypes.some(type => leaveType.includes(type))) {
+        plannedCount++;
+      } else if (daysInAdvance < 3 || unplannedLeaveTypes.some(type => leaveType.includes(type))) {
+        unplannedCount++;
+      } else {
+        // Default classification based on advance notice
+        if (daysInAdvance >= 1) {
+          plannedCount++;
+        } else {
+          unplannedCount++;
+        }
+      }
+    });
 
-    this.plannedVsUnplannedData.datasets[0].data = [plannedLeaves, unplannedLeaves];
+    this.plannedVsUnplannedData.datasets[0].data = [plannedCount, unplannedCount];
+  }
+
+  private filterDataByTimeRange(data: any[], timeRange: string): any[] {
+    const now = new Date();
+    let startDate: Date;
+
+    switch (timeRange) {
+      case 'Last Week':
+        startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case 'Last Month':
+        startDate = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+        break;
+      case 'Last 3 Months':
+        startDate = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+        break;
+      case 'YTD':
+      default:
+        startDate = new Date(now.getFullYear(), 0, 1);
+        break;
+    }
+
+    return data.filter(leave => {
+      const leaveDate = new Date(leave.from_date);
+      return leaveDate >= startDate && leaveDate <= now;
+    });
   }
 
   private updateTopEmployeesChart() {
-    console.log('📈 Updating top employees chart with real API data...');
-
-    // Use real recent leaves data from API
+    
+    // Use real recent leaves data from API, filtered by current selected date range
     if (this.recentLeaves && this.recentLeaves.length > 0) {
-      // Count leaves per employee from recent data
+      // Get current filter dates to match the selected month/period
+      const currentFilters = this.globalFilterService.getCurrentFilters();
+      const fromDate = new Date(currentFilters.fromDate);
+      const toDate = new Date(currentFilters.toDate);
+      
+      // Filter recent leaves to only include those within the selected date range
+      const filteredLeaves = this.recentLeaves.filter(leave => {
+        if (leave.from_date) {
+          const leaveDate = new Date(leave.from_date);
+          return leaveDate >= fromDate && leaveDate <= toDate;
+        }
+        return false;
+      });
+      
+      // Count leaves per employee from filtered data
       const employeeLeaveCount: { [key: string]: number } = {};
-      this.recentLeaves.forEach(leave => {
+      filteredLeaves.forEach(leave => {
         const name = leave.employee_name;
         employeeLeaveCount[name] = (employeeLeaveCount[name] || 0) + 1;
       });
@@ -889,8 +1225,7 @@ export class LeaveManagementSectionComponent implements OnInit, OnDestroy {
   onMonthYearChange() {
     const monthIndex = typeof this.selectedMonth === 'string' ? parseInt(this.selectedMonth, 10) : this.selectedMonth;
     const monthName = this.months[monthIndex] || this.selectedMonth;
-    console.log(`📅 Month/Year changed to: ${monthName} ${this.selectedYear}`);
-    // Re-process data with new month/year - data will be reloaded via global filter subscription
+        // Re-process data with new month/year - data will be reloaded via global filter subscription
   }
 
   getTopThreeEmployees(): any[] {

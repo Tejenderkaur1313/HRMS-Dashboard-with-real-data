@@ -5,17 +5,17 @@
       <span class="nav-label">Dashboard</span>
     </div>
     
-    <div class="nav-item" [class.active]="activeSection==='leave-management'" (click)="navigateToSection('leave-management')">
-      <span class="nav-icon material-symbols-rounded">event_available</span>
-      <span class="nav-label">Leave Management</span>
-    </div>
-    
     <div class="nav-item" [class.active]="activeSection==='attendance'" (click)="navigateToSection('attendance')">
       <span class="nav-icon material-symbols-rounded">how_to_reg</span>
       <span class="nav-label">Attendance</span>
     </div>
     
-    <div class="nav-item" [class.active]="activeSection==='payroll'" (click)="navigateToSection('payroll')">
+    <div class="nav-item" [class.active]="activeSection==='leave-management'" (click)="navigateToSection('leave-management')">
+      <span class="nav-icon material-symbols-rounded">event_available</span>
+      <span class="nav-label">Leave Management</span>
+    </div>
+    
+    <!-- <div class="nav-item" [class.active]="activeSection==='payroll'" (click)="navigateToSection('payroll')">
       <span class="nav-icon material-symbols-rounded">payments</span>
       <span class="nav-label">Payroll</span>
     </div>
@@ -34,6 +34,6 @@
     <div class="nav-item" [class.active]="activeSection==='reports-analytics'" (click)="navigateToSection('reports-analytics')">
       <span class="nav-icon material-symbols-rounded">analytics</span>
       <span class="nav-label">Reports &amp; Analytics</span>
-    </div>
+    </div> -->
   </div>
 </nav>

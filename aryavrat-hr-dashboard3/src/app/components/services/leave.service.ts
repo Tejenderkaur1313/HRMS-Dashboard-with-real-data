@@ -1,7 +1,10 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable, throwError } from 'rxjs';
+import { Observable, throwError, forkJoin } from 'rxjs';
 import { map, timeout, catchError, shareReplay, tap } from 'rxjs/operators';
+import { DepartmentService, Department } from './department.service';
+import { UserService } from './user.service';
+import { environment } from '../../../environments/environment';
 
 export interface LeaveData {
   totalLeaves: number;
@@ -16,16 +19,29 @@ export interface LeaveData {
 
 @Injectable({ providedIn: 'root' })
 export class LeaveService {
-  private apiUrl = 'http://192.168.10.148/desktop_track/kricel_for_live_manish/api/desktop_tracking/web/v1/index/index';
+  private apiUrl = environment.php_base_url;
   //private apiUrl = 'https://stagingdesktrack.timentask.com';
   private cachedData: Observable<LeaveData> | null = null;
   private lastFilters: string = '';
 
-  constructor(private http: HttpClient) {}
+  constructor(
+    private http: HttpClient,
+    private departmentService: DepartmentService,
+    private userService: UserService
+  ) {}
 
-  getLeaveData(fromDate: string, toDate: string, companyId: number = 85): Observable<LeaveData> {
+  getLeaveData(
+    fromDate: string,
+    toDate: string,
+    companyId: any = localStorage.getItem('company_id')
+  ): Observable<LeaveData> {
     const filterKey = `${fromDate}-${toDate}-${companyId}`;
-    
+
+    // Always clear cache and fetch new data when filters change
+    if (this.lastFilters !== filterKey) {
+      this.cachedData = null;
+    }
+
     if (this.cachedData && this.lastFilters === filterKey) {
       return this.cachedData;
     }
@@ -33,59 +49,40 @@ export class LeaveService {
     this.lastFilters = filterKey;
 
     const headers = new HttpHeaders({
-      'Content-Type': 'application/x-www-form-urlencoded'
+      'Content-Type': 'application/x-www-form-urlencoded',
     });
 
     const body = new URLSearchParams();
-    body.set('data', JSON.stringify({
-      cmd: 'ai_leave_data',
-      company_id: companyId,
-      from_date: fromDate,
-      to_date: toDate,
-      filter_type: 'user'
-    }));
+    body.set(
+      'data',
+      JSON.stringify({
+        cmd: 'ai_leave_data',
+        company_id: companyId,
+        from_date: fromDate,
+        to_date: toDate,
+        filter_type: 'user',
+      })
+    );
 
-    this.cachedData = this.http.post<any>(this.apiUrl, body.toString(), { headers }).pipe(
+    const leaveRequest$ = this.http.post<any>(this.apiUrl, body.toString(), { headers });
+    const departmentsRequest$ = this.departmentService.getDepartments(companyId);
+    const userDepartmentMap$ = this.userService.getUserDepartmentMap(companyId);
+
+    this.cachedData = forkJoin([leaveRequest$, departmentsRequest$, userDepartmentMap$]).pipe(
       timeout(30000),
-      tap(response => {
-        console.log('🏖️ LEAVE SERVICE API RESPONSE:');
-        console.log('📊 Leave API Full Response:', JSON.stringify(response, null, 2));
-        console.log('🗂️ Leave Response Keys:', Object.keys(response || {}));
-        console.log('📋 Leave Data Structure:', response?.data ? Object.keys(response.data) : 'No data key');
-        if (response?.data && Array.isArray(response.data)) {
-          console.log('🏖️ Sample Leave Data Item:', response.data[0]);
-          console.log('🔢 Total Leave Records:', response.data.length);
-        }
+      map(([leaveResponse, departments, userDepartmentMap]) => {
+        const departmentMap = new Map<string, string>();
+        departments.forEach(dept => departmentMap.set(String(dept.id), dept.name));
+        return this.processLeaveData(leaveResponse, departmentMap, userDepartmentMap);
       }),
-      catchError(error => {
-        console.error('❌ Leave data API failed:', error);
-        console.error('🌐 Request URL:', this.apiUrl);
-        console.error('📤 Request Body:', body.toString());
+      catchError((error) => {
         this.cachedData = null;
         return throwError(() => new Error(`Leave data API failed: ${error.message}`));
       }),
-      map(response => this.processLeaveData(response)),
       shareReplay(1)
     );
 
     return this.cachedData;
-  }
-
-  private getDepartmentName(departmentId: string): string {
-    const departmentMap: { [key: string]: string } = {
-      '4749': 'Development',
-      '4750': 'Frontend', 
-      '4751': 'Backend',
-      '4752': 'Sales',
-      '4753': 'QA',
-      '4754': 'Support',
-      '4755': 'BPO',
-      '4756': 'Android',
-      '4757': 'Marketing',
-      '4758': 'Design'
-    };
-    
-    return departmentMap[departmentId] || `Department ${departmentId}`;
   }
 
   private getLeaveTypeName(typeId: string): string {
@@ -96,79 +93,125 @@ export class LeaveService {
       '4': 'Unpaid Leave',
       '5': 'Emergency Leave',
       '6': 'Maternity Leave',
-      '7': 'Paternity Leave'
+      '7': 'Paternity Leave',
     };
-    
+
     return leaveTypeMap[typeId] || `Leave Type ${typeId}`;
   }
 
-  private processLeaveData(response: any): LeaveData {
-    console.log('🔄 Processing leave response:', response);
-    
+  private processLeaveData(response: any, departmentMap: Map<string, string>, userDepartmentMap: Map<string, string>): LeaveData {
     // Handle server errors
-    if (response?.status === 'error' || response?.res_code === 2 || response?.server_msg) {
-      console.warn('⚠️ Server error in leave API:', response?.server_msg || response?.msg);
+    if (
+      response?.status === 'error' ||
+      response?.res_code === 2 ||
+      response?.server_msg
+    ) {
       return this.getEmptyLeaveData();
     }
-    
+
     if (response?.status !== 'success' || !response?.data) {
-      console.warn('⚠️ Unexpected leave response format:', response);
       return this.getEmptyLeaveData();
     }
 
     const data = response.data;
-    
+
     if (!Array.isArray(data)) {
-      console.warn('⚠️ Leave data is not an array:', data);
       return this.getEmptyLeaveData();
     }
 
     // Process leave data using actual column names from your API
     const totalLeaves = data.length;
-    const approvedLeaves = data.filter((leave: any) => leave.lr_status === '1').length;
-    const pendingLeaves = data.filter((leave: any) => leave.lr_status === '0').length;
-    const rejectedLeaves = data.filter((leave: any) => leave.lr_status === '2').length;
+    const approvedLeaves = data.filter(
+      (leave: any) => leave.lr_status === '1'
+    ).length;
+    const pendingLeaves = data.filter(
+      (leave: any) => leave.lr_status === '0'
+    ).length;
+    const rejectedLeaves = data.filter(
+      (leave: any) => leave.lr_status === '2'
+    ).length;
 
     // Group by leave type using leave_name directly from API
     const leaveTypeGroups: { [key: string]: number } = {};
     data.forEach((leave: any) => {
-      const leaveName = leave.leave_name || leave.lr_leave_type || 'Unknown Leave';
+      const leaveName =
+        leave.leave_name || leave.lr_leave_type || 'Unknown Leave';
       leaveTypeGroups[leaveName] = (leaveTypeGroups[leaveName] || 0) + 1;
     });
-    
-    const leavesByType = Object.entries(leaveTypeGroups).map(([leaveName, count]) => ({
-      name: leaveName,
-      value: count
-    }));
+
+    const leavesByType = Object.entries(leaveTypeGroups).map(
+      ([leaveName, count]) => ({
+        name: leaveName,
+        value: count,
+      })
+    );
 
     // Group by month from lr_from_date
     const monthGroups: { [key: string]: number } = {};
     data.forEach((leave: any) => {
       if (leave.lr_from_date) {
-        const month = new Date(leave.lr_from_date).toLocaleString('default', { month: 'short' });
+        const month = new Date(leave.lr_from_date).toLocaleString('default', {
+          month: 'short',
+        });
         monthGroups[month] = (monthGroups[month] || 0) + 1;
       }
     });
-    
-    const leaveTrend = [{
-      name: 'Leave Requests',
-      series: Object.entries(monthGroups).map(([month, count]) => ({
-        name: month,
-        value: count
-      }))
-    }];
 
-    // Group by department using department_tag_id from user data
+    const leaveTrend = [
+      {
+        name: 'Leave Requests',
+        series: Object.entries(monthGroups).map(([month, count]) => ({
+          name: month,
+          value: count,
+        })),
+      },
+    ];
+
+    // Initialize all departments with 0 leaves from the department map
     const deptGroups: { [key: string]: number } = {};
-    data.forEach((leave: any) => {
-      const deptId = leave.department_tag_id || leave.dept_id || 'Unknown';
-      deptGroups[deptId] = (deptGroups[deptId] || 0) + 1;
+    departmentMap.forEach((_, deptId) => {
+      deptGroups[deptId] = 0;
     });
-    
-    const leavesByDepartment = Object.entries(deptGroups).map(([deptId, count]) => ({
-      name: this.getDepartmentName(deptId),
-      value: count
-    }));
+
+    // Group by department using the user-department map
+    data.forEach((leave: any) => {
+      const deptId = userDepartmentMap.get(String(leave.lr_user_id));
+      if (deptId && deptGroups.hasOwnProperty(deptId)) {
+        deptGroups[deptId]++;
+      } else {
+        // Handle leaves where the department is not in the map, if necessary
+        deptGroups['Unknown'] = (deptGroups['Unknown'] || 0) + 1;
+      }
+    });
+
+    const leavesByDepartment = Object.entries(deptGroups).map(
+      ([deptId, count]) => ({
+        name: departmentMap.get(deptId) || `Department ${deptId}`,
+        value: count,
+      })
+    );
+
+    // Add department_name to each leave record for use in the component
+    const processedRecentLeaves = data.slice(0, 10).map((leave: any) => {
+      const deptId = userDepartmentMap.get(String(leave.lr_user_id)) || 'Unknown';
+      const department_name = departmentMap.get(deptId) || `Department ${deptId}`;
+      return {
+        ...leave,
+        department_name,
+        employee_name:
+          leave.name || leave.first_name || `User ${leave.lr_user_id}`,
+        leave_type: leave.leave_name || leave.lr_leave_type || 'Unknown Leave',
+        from_date: leave.lr_from_date,
+        duration: leave.lr_leave_duration,
+        reason: leave.lr_reason || 'No reason provided',
+        status:
+          leave.lr_status === '1'
+            ? 'Approved'
+            : leave.lr_status === '0'
+            ? 'Pending'
+            : 'Rejected',
+      };
+    });
 
     return {
       totalLeaves,
@@ -178,14 +221,7 @@ export class LeaveService {
       leavesByDepartment,
       leavesByType,
       leaveTrend,
-      recentLeaves: data.slice(0, 10).map((leave: any) => ({
-        employee_name: leave.name || leave.first_name || `User ${leave.lr_user_id}`,
-        leave_type: leave.leave_name || leave.lr_leave_type || 'Unknown Leave',
-        from_date: leave.lr_from_date,
-        duration: leave.lr_leave_duration,
-        reason: leave.lr_reason || 'No reason provided',
-        status: leave.lr_status === '1' ? 'Approved' : leave.lr_status === '0' ? 'Pending' : 'Rejected'
-      }))
+      recentLeaves: processedRecentLeaves,
     };
   }
 
@@ -198,7 +234,7 @@ export class LeaveService {
       leavesByDepartment: [],
       leavesByType: [],
       leaveTrend: [],
-      recentLeaves: []
+      recentLeaves: [],
     };
   }
 

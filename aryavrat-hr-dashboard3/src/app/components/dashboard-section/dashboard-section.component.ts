@@ -1,21 +1,17 @@
 // dashboard-section.component.ts
 
-import { Component, OnInit, Inject, PLATFORM_ID } from '@angular/core';
+import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { BaseChartDirective } from 'ng2-charts';
-import { ChartConfiguration, ChartOptions, ChartType } from 'chart.js';
+import { ChartConfiguration, ChartOptions, ChartType, ChartData, ChartDataset } from 'chart.js';
 import { DataService } from '../services/data.service';
 import { FilterService } from '../services/filter.service';
 import { DepartmentService, Department } from '../services/department.service';
-import { map, combineLatest } from 'rxjs';
-
-interface Holiday {
-  name: string;
-  date: Date;
-  day: string;
-  month: string;
-  type: string;
-}
+import { ProductivityService, ProductivityData } from '../services/productivity.service';
+import { LeaveService, LeaveData } from '../services/leave.service';
+import { GlobalFilterService, GlobalFilters } from '../services/global-filter.service';
+import { Holiday } from '../services/holiday.service';
+import { forkJoin, Subscription } from 'rxjs';
 
 interface LeaveRequest {
   id: number;
@@ -24,7 +20,25 @@ interface LeaveRequest {
   startDate: string;
   endDate: string;
   status: 'pending' | 'approved' | 'rejected';
-  avatar: string;
+}
+
+interface DashboardData {
+  kpiData: {
+    avgAttendance: number;
+    employees: number;
+    leaves: number;
+    performance: number;
+  };
+  attendanceData: {
+    present: number;
+    late: number;
+    absent: number;
+    halfDay: number;
+    total: number;
+    presentPercentage: number;
+  };
+  upcomingHolidays: Holiday[];
+  recentLeaveRequests: LeaveRequest[];
 }
 
 @Component({
@@ -34,56 +48,36 @@ interface LeaveRequest {
   templateUrl: './dashboard-section.component.html',
   styleUrls: ['./dashboard-section.component.scss']
 })
-export class DashboardSectionComponent implements OnInit {
+export class DashboardSectionComponent implements OnInit, OnDestroy {
   isBrowser: boolean = false;
   departments: Department[] = [];
-  
+  isLoading = true;
+  error: string | null = null;
+  currentDateDisplay: string = '';
+  private filterSubscription: Subscription = new Subscription();
   
   // KPI Data
   kpiData = {
-    avgAttendance: 92.5,
-    employees: 1248,
-    leaves: 28,
-    performance: 4.2
+    avgAttendance: 0,
+    employees: 0,
+    leaves: 0,
+    performance: 0
   };
 
   // Upcoming Holidays
-  upcomingHolidays: Holiday[] = [
-    { name: 'New Year\'s Day', date: new Date(2024, 0, 1), day: '01', month: 'JAN', type: 'Public Holiday' },
-    { name: 'Republic Day', date: new Date(2024, 0, 26), day: '26', month: 'JAN', type: 'Public Holiday' },
-    { name: 'Holi', date: new Date(2024, 2, 8), day: '08', month: 'MAR', type: 'Festival' },
-    { name: 'Good Friday', date: new Date(2024, 3, 29), day: '29', month: 'MAR', type: 'Public Holiday' },
-    { name: 'Eid al-Fitr', date: new Date(2024, 4, 10), day: '10', month: 'APR', type: 'Public Holiday' }
-  ];
+  upcomingHolidays: Holiday[] = [];
 
   // Recent Leave Requests
-  recentLeaveRequests: LeaveRequest[] = [
-    { id: 1, employee: 'John Doe', type: 'Sick Leave', startDate: '15 Mar 2024', endDate: '17 Mar 2024', status: 'approved', avatar: 'JD' },
-    { id: 2, employee: 'Jane Smith', type: 'Casual Leave', startDate: '18 Mar 2024', endDate: '19 Mar 2024', status: 'pending', avatar: 'JS' },
-    { id: 3, employee: 'Robert Johnson', type: 'Annual Leave', startDate: '20 Mar 2024', endDate: '25 Mar 2024', status: 'approved', avatar: 'RJ' },
-    { id: 4, employee: 'Emily Davis', type: 'Work From Home', startDate: '16 Mar 2024', endDate: '16 Mar 2024', status: 'approved', avatar: 'ED' },
-    { id: 5, employee: 'Michael Brown', type: 'Sick Leave', startDate: '14 Mar 2024', endDate: '15 Mar 2024', status: 'rejected', avatar: 'MB' }
-  ];
+  recentLeaveRequests: LeaveRequest[] = [];
   
   // Attendance Data
-  attendanceData = {
-    present: 52,
-    late: 10,
-    absent: 15,
-    halfDay: 4,
-    get total() {
-      return this.present + this.late + this.absent + this.halfDay;
-    },
-    get presentPercentage() {
-      return Math.round((this.present / this.total) * 100);
-    }
-  };
+  attendanceData: any = undefined;
 
   // Donut Chart Configuration
   donutChartData = {
     labels: ['Present', 'Late', 'Absent', 'Half Day'],
     datasets: [{
-      data: [52, 10, 15, 4],
+      data: [0, 0, 0, 0],
       backgroundColor: ['#10B981', '#EF4444', '#9CA3AF', '#F59E0B'],
       borderWidth: 0,
       cutout: '70%',
@@ -216,13 +210,13 @@ export class DashboardSectionComponent implements OnInit {
     }
   };
 
-  // Chart Data
-  attendanceChartData = {
-    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+  // Chart Data with proper typing
+  attendanceChartData: ChartData<'line'> = {
+    labels: [],
     datasets: [
       {
         label: 'Present',
-        data: [92, 95, 90, 88, 94, 65, 30],
+        data: [],
         borderColor: '#4f46e5',
         backgroundColor: 'rgba(79, 70, 229, 0.1)',
         borderWidth: 2,
@@ -235,7 +229,7 @@ export class DashboardSectionComponent implements OnInit {
       },
       {
         label: 'Absent',
-        data: [8, 5, 10, 12, 6, 35, 70],
+        data: [],
         borderColor: '#ef4444',
         backgroundColor: 'rgba(239, 68, 68, 0.1)',
         borderWidth: 2,
@@ -249,11 +243,11 @@ export class DashboardSectionComponent implements OnInit {
     ]
   };
 
-  departmentChartData = {
-    labels: ['Development', 'Design', 'Marketing', 'Sales', 'HR', 'Finance', 'Operations'],
+  departmentChartData: ChartData<'bar'> = {
+    labels: [],
     datasets: [{
       label: 'Employees',
-      data: [320, 85, 65, 92, 45, 38, 52],
+      data: [],
       backgroundColor: [
         'rgba(79, 70, 229, 0.8)',
         'rgba(99, 102, 241, 0.8)',
@@ -262,7 +256,7 @@ export class DashboardSectionComponent implements OnInit {
         'rgba(199, 210, 254, 0.8)',
         'rgba(219, 234, 254, 0.8)',
         'rgba(224, 242, 254, 0.8)'
-      ],
+      ] as any[],
       borderColor: [
         'rgba(79, 70, 229, 1)',
         'rgba(99, 102, 241, 1)',
@@ -271,7 +265,7 @@ export class DashboardSectionComponent implements OnInit {
         'rgba(199, 210, 254, 1)',
         'rgba(219, 234, 254, 1)',
         'rgba(224, 242, 254, 1)'
-      ],
+      ] as any[],
       borderWidth: 1,
       borderRadius: 4
     }]
@@ -323,31 +317,288 @@ export class DashboardSectionComponent implements OnInit {
   };
 
   constructor(
-    private dataService: DataService, 
+    @Inject(PLATFORM_ID) private platformId: Object,
+    private dataService: DataService,
     private filterService: FilterService,
     private departmentService: DepartmentService,
-    @Inject(PLATFORM_ID) platformId: Object
-  ) {
+    private productivityService: ProductivityService,
+    private leaveService: LeaveService,
+    private globalFilterService: GlobalFilterService
+  ) { 
+    // Initialize department chart data with empty arrays
+    this.departmentChartData = {
+      labels: [],
+      datasets: [{
+        label: 'Employees',
+        data: [],
+        backgroundColor: [
+          'rgba(79, 70, 229, 0.8)',
+          'rgba(99, 102, 241, 0.8)',
+          'rgba(129, 140, 248, 0.8)',
+          'rgba(165, 180, 252, 0.8)'
+        ],
+        borderColor: [
+          'rgba(79, 70, 229, 1)',
+          'rgba(99, 102, 241, 1)',
+          'rgba(129, 140, 248, 1)',
+          'rgba(165, 180, 252, 1)'
+        ],
+        borderWidth: 1,
+        borderRadius: 4
+      }]
+    };
     this.isBrowser = isPlatformBrowser(platformId);
   }
 
   ngOnInit(): void {
-    this.departmentService.getDepartments().subscribe({
-      next: (departments: Department[]) => {
-        this.departments = departments;
-        this.updateDepartmentChart();
+    this.setCurrentDate();
+    
+    // Subscribe to global filter changes
+    this.filterSubscription = this.globalFilterService.filters$.subscribe(
+      (filters: GlobalFilters) => {
+        this.loadDashboardData(filters);
+      }
+    );
+  }
+
+  ngOnDestroy(): void {
+    this.filterSubscription.unsubscribe();
+  }
+
+  private loadDashboardData(filters?: GlobalFilters): void {
+    this.isLoading = true;
+    this.error = null;
+
+    // Use filters if provided, otherwise get current filters
+    const currentFilters = filters || this.globalFilterService.getCurrentFilters();
+    const fromDate = currentFilters.fromDate;
+    const toDate = currentFilters.toDate;
+
+    // Fetch data from multiple sources
+    forkJoin([
+      this.productivityService.getProductivityData(fromDate, toDate),
+      this.departmentService.getDepartments(),
+      this.leaveService.getLeaveData(fromDate, toDate)
+    ]).subscribe({
+      next: ([productivityData, departments, leaveData]) => {
+        this.departments = departments || [];
+        this.updateDashboardData(productivityData);
+        this.updateLeaveRequestsData(leaveData);
+        // Holiday API call disabled
+        this.upcomingHolidays = []; // Clear holidays
+        this.isLoading = false;
       },
       error: (error) => {
-        console.error('Error loading departments:', error);
+        console.error('Error loading dashboard data:', error);
+        this.error = 'Failed to load dashboard data. Please try again later.';
+        this.isLoading = false;
       }
     });
   }
 
-  private updateDepartmentChart() {
-    if (this.departments.length > 0) {
-      const employeeCounts = this.departments.map(() => Math.floor(Math.random() * 50) + 10);
-      this.departmentChartData.labels = this.departments.map(dept => dept.name);
-      this.departmentChartData.datasets[0].data = employeeCounts;
+  private updateDashboardData(data: ProductivityData): void {
+    try {
+      // Update KPI data
+      this.kpiData = {
+        avgAttendance: data.avgAttendance || 0,
+        employees: data.totalEmployees || 0,
+        leaves: data.leaveCount || 0,
+        performance: this.calculatePerformanceScore(data)
+      };
+
+      // Update attendance data
+      const presentCount = Math.round((data.avgAttendance || 0) * (data.totalEmployees || 0) / 100);
+      this.attendanceData = {
+        present: presentCount,
+        late: data.lateCount || 0,
+        absent: (data.totalEmployees || 0) - presentCount,
+        halfDay: data.halfDayCount || 0,
+        get total() {
+          return this.present + this.late + this.absent + this.halfDay;
+        },
+        get presentPercentage() {
+          return this.total > 0 ? Math.round((this.present / this.total) * 100) : 0;
+        }
+      };
+
+      // Update donut chart data
+      this.donutChartData = {
+        ...this.donutChartData,
+        datasets: [{
+          ...this.donutChartData.datasets[0],
+          data: [
+            this.attendanceData.present,
+            this.attendanceData.late,
+            this.attendanceData.absent,
+            this.attendanceData.halfDay
+          ]
+        }]
+      };
+
+      // Update department chart
+      this.updateDepartmentChart(data);
+
+      // Update attendance trend chart if weekly data is available
+      if (data.weeklyTrends?.length) {
+        this.attendanceChartData = {
+          ...this.attendanceChartData,
+          labels: data.weeklyTrends.map(week => `Week ${week.weekNo}`),
+          datasets: [
+            {
+              ...this.attendanceChartData.datasets[0],
+              data: data.weeklyTrends.map(week => week.avgAttendance || 0)
+            },
+            {
+              ...this.attendanceChartData.datasets[1],
+              data: data.weeklyTrends.map(week => 100 - (week.avgAttendance || 0))
+            }
+          ]
+        };
+      }
+
+    } catch (error) {
+      console.error('Error updating dashboard data:', error);
+      this.error = 'Failed to update dashboard data. Please try again later.';
+    }
+  }
+
+  private updateLeaveRequestsData(leaveData: LeaveData): void {
+    try {
+      // Get current date and selected filter dates
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const currentFilters = this.globalFilterService.getCurrentFilters();
+      const selectedFromDate = new Date(currentFilters.fromDate);
+      const selectedToDate = new Date(currentFilters.toDate);
+      
+      const currentMonth = today.getMonth();
+      const currentYear = today.getFullYear();
+      const selectedMonth = selectedFromDate.getMonth();
+      const selectedYear = selectedFromDate.getFullYear();
+      
+      // Determine if we're viewing current month or a previous month
+      const isCurrentMonth = selectedMonth === currentMonth && selectedYear === currentYear;
+      
+      // Filter leave data based on whether it's current month or previous month
+      this.recentLeaveRequests = (leaveData.recentLeaves || [])
+        .filter((leave: any) => {
+          const leaveStartDate = new Date(leave.from_date || leave.start_date);
+          leaveStartDate.setHours(0, 0, 0, 0);
+          
+          if (isCurrentMonth) {
+            // For current month: show only upcoming leaves (today or future)
+            return leaveStartDate >= today && 
+                   leaveStartDate.getMonth() === currentMonth && 
+                   leaveStartDate.getFullYear() === currentYear;
+          } else {
+            // For previous months: show all leaves within the selected date range
+            selectedFromDate.setHours(0, 0, 0, 0);
+            selectedToDate.setHours(23, 59, 59, 999);
+            return leaveStartDate >= selectedFromDate && leaveStartDate <= selectedToDate;
+          }
+        })
+        .map((leave: any) => ({
+          id: leave.id || Math.random(),
+          employee: leave.employee_name || leave.name || 'Unknown Employee',
+          type: leave.leave_type || leave.type || 'General Leave',
+          startDate: this.formatDisplayDate(leave.from_date || leave.start_date),
+          endDate: this.formatDisplayDate(leave.to_date || leave.end_date),
+          status: leave.status || 'pending'
+        }))
+        .sort((a, b) => {
+          // Sort by start date (earliest first)
+          const dateA = new Date(a.startDate);
+          const dateB = new Date(b.startDate);
+          return dateA.getTime() - dateB.getTime();
+        })
+        .slice(0, 5); // Show only first 5 requests
+
+      console.log(`Updated leave requests for ${isCurrentMonth ? 'current month (upcoming)' : 'selected period (all)'}:`, this.recentLeaveRequests);
+    } catch (error) {
+      console.error('Error updating leave requests data:', error);
+      // Clear requests on error instead of showing fallback data
+      this.recentLeaveRequests = [];
+    }
+  }
+
+  private formatDisplayDate(dateStr: string): string {
+    if (!dateStr) return '';
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-GB', { 
+        day: 'numeric', 
+        month: 'short' 
+      });
+    } catch {
+      return dateStr;
+    }
+  }
+
+  private calculatePerformanceScore(data: ProductivityData): number {
+    // Calculate a performance score based on productivity and attendance (0-5 scale)
+    const productivityScore = Math.min((data.avgProductiveHours / 8) * 5, 5); // 8 hours = 5.0 rating
+    const attendanceScore = Math.min((data.attendanceRate / 100) * 5, 5); // 100% = 5.0 rating
+    const deskTimeScore = Math.min((data.avgDeskTime / 8) * 5, 5); // 8 hours = 5.0 rating
+    
+    // Weighted average of different metrics (0-5 scale)
+    const finalScore = (productivityScore * 0.5) + (attendanceScore * 0.3) + (deskTimeScore * 0.2);
+    return Number(Math.min(finalScore, 5).toFixed(1));
+  }
+
+  private updateDepartmentChart(data: ProductivityData): void {
+    try {
+      if (data.departmentStats?.length) {
+        this.departmentChartData = {
+          ...this.departmentChartData,
+          labels: data.departmentStats.map((dept: any) => dept.name),
+          datasets: [{
+            ...this.departmentChartData.datasets[0],
+            data: data.departmentStats.map((dept: any) => dept.employeeCount || 0)
+          }]
+        };
+      } else if (this.departments?.length) {
+        // Fallback to department data if productivity data is not available
+        this.departmentChartData = {
+          ...this.departmentChartData,
+          labels: this.departments.map(dept => dept.name),
+          datasets: [{
+            ...this.departmentChartData.datasets[0],
+            data: this.departments.map(() => Math.floor(Math.random() * 50) + 10)
+          }]
+        };
+      }
+    } catch (error) {
+      console.error('Error updating department chart:', error);
+    }
+  }
+
+
+
+  private formatDate(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  private setCurrentDate(): void {
+    const today = new Date();
+    const day = today.getDate();
+    const month = today.toLocaleString('default', { month: 'short' });
+    const year = today.getFullYear();
+    this.currentDateDisplay = `Today, ${day} ${month} ${year}`;
+  }
+
+  private updateHolidayData(holidayData: any): void {
+    try {
+      // Update holidays from API data
+      this.upcomingHolidays = holidayData.holidays || [];
+      console.log('Updated holidays:', this.upcomingHolidays);
+    } catch (error) {
+      console.error('Error updating holiday data:', error);
+      // Keep existing holidays or set empty array
+      this.upcomingHolidays = [];
     }
   }
 }

@@ -3,7 +3,7 @@
   <div class="dashboard-header">
     <h1>Dashboard Overview</h1>
     <div class="date-selector">
-      <span class="current-date">Today, 15 Mar 2024</span>
+      <span class="current-date">{{ currentDateDisplay }}</span>
       <button class="date-picker-btn">
         <i class="calendar-icon">📅</i>
       </button>
@@ -94,9 +94,9 @@
                 type="doughnut">
               </canvas>
               <div class="donut-center-text">
-                <div class="percentage">{{attendanceData.presentPercentage}}%</div>
+                <div class="percentage">{{attendanceData?.presentPercentage}}%</div>
                 <div class="label">Present</div>
-                <div class="count">{{attendanceData.present}}/{{attendanceData.total}}</div>
+                <div class="count">{{attendanceData?.present}}/{{attendanceData?.total}}</div>
               </div>
             </div>
             <div *ngIf="!isBrowser" class="chart-placeholder">Attendance Chart</div>
@@ -106,28 +106,28 @@
             <div class="metric-item">
               <span class="dot present"></span>
               <div class="metric-details">
-                <div class="metric-value">{{attendanceData.present}}</div>
+                <div class="metric-value">{{attendanceData?.present}}</div>
                 <div class="metric-label">On Time</div>
               </div>
             </div>
             <div class="metric-item">
               <span class="dot late"></span>
               <div class="metric-details">
-                <div class="metric-value">{{attendanceData.late}}</div>
+                <div class="metric-value">{{attendanceData?.late}}</div>
                 <div class="metric-label">Late</div>
               </div>
             </div>
             <div class="metric-item">
               <span class="dot absent"></span>
               <div class="metric-details">
-                <div class="metric-value">{{attendanceData.absent}}</div>
+                <div class="metric-value">{{attendanceData?.absent}}</div>
                 <div class="metric-label">Absent</div>
               </div>
             </div>
             <div class="metric-item">
               <span class="dot half-day"></span>
               <div class="metric-details">
-                <div class="metric-value">{{attendanceData.halfDay}}</div>
+                <div class="metric-value">{{attendanceData?.halfDay}}</div>
                 <div class="metric-label">Half Day</div>
               </div>
             </div>
@@ -175,10 +175,7 @@
         </div>
         <div class="leaves-list">
           <div class="leave-item" *ngFor="let leave of recentLeaveRequests | slice:0:3" [ngClass]="'status-' + leave.status">
-            <div class="leave-avatar">
-              {{leave.avatar}}
-            </div>
-            <div class="leave-details">
+                        <div class="leave-details">
               <h4>{{leave.employee}}</h4>
               <p>{{leave.type}}</p>
               <span class="leave-dates">{{leave.startDate}} - {{leave.endDate}}</span>

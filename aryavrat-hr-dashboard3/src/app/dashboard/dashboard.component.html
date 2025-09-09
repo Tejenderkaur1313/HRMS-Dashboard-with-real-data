@@ -1,0 +1,30 @@
+<div *ngIf="companyReady; else loading">
+  <div class="hr-dashboard">
+    <app-header></app-header>
+    <div class="dashboard-layout">
+      <div class="left-panel">
+        <app-sidebar></app-sidebar>
+      </div>
+      <main class="dashboard-main">
+        <div class="filters-bar">
+          <app-global-filters></app-global-filters>
+        </div>
+        <div class="dashboard-content">
+          <section id="dashboard" class="dashboard-section">
+            <app-dashboard-section></app-dashboard-section>
+          </section>
+          <section id="attendance" class="dashboard-section">
+            <app-attendance-section></app-attendance-section>
+          </section>
+          <section id="leave-management" class="dashboard-section">
+            <app-leave-management-section></app-leave-management-section>
+          </section>
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+
+<ng-template #loading>
+  <p>Loading company data...</p>
+</ng-template>
